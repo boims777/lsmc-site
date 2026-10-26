@@ -563,26 +563,34 @@ document.addEventListener("DOMContentLoaded", () => {
         const container = document.getElementById('news-grid');
         try {
             const res = await fetch('/api/news');
-            const news = await res.json();
+            let news = await res.json();
+            
+            // Сортируем новости: самые новые (по id, так как id = Date.now()) идут первыми
+            news.sort((a, b) => b.id - a.id);
+
             container.innerHTML = '';
+            
             if(news.length === 0) {
-                container.innerHTML = '<p style="color:var(--text-muted); text-align:center; width:100%; grid-column: 1 / -1;">Пока нет новостей.</p>';
+                container.innerHTML = '<p style="color:var(--text-muted); text-align:center; width:100%; padding: 40px;">Пока нет новостей.</p>';
                 return;
             }
             
-            news.forEach(item => {
+            news.forEach((item, index) => {
                 const div = document.createElement('div');
                 div.className = 'news-card';
                 div.onclick = () => window.openNews(item.title, item.text, item.tag, item.date, item.image);
                 
-                const imgHtml = item.image ? `<div class="news-card-image"><img src="${item.image}" alt="Cover"></div>` : '';
+                // Если картинки нет, ставим заглушку
+                const imageSrc = item.image ? item.image : 'img/hospital.jpg'; 
 
                 div.innerHTML = `
-                    ${imgHtml}
+                    <div class="news-card-image">
+                        <img src="${imageSrc}" alt="Cover">
+                    </div>
                     <div class="news-content">
                         <span class="news-tag">${item.tag}</span>
                         <h3 class="news-title">${item.title}</h3>
-                        <p class="news-excerpt">${item.text.substring(0, 100)}...</p>
+                        <p class="news-excerpt">${item.text}</p>
                         <div class="news-footer">
                             <span class="news-date">${item.date}</span>
                             <span style="color: var(--accent); font-weight: 600;">Читать →</span>
@@ -590,8 +598,22 @@ document.addEventListener("DOMContentLoaded", () => {
                     </div>
                 `;
                 container.appendChild(div);
+
+                // Крутая анимация появления (по очереди)
+                if (typeof gsap !== 'undefined') {
+                    gsap.from(div, {
+                        y: 30,
+                        opacity: 0,
+                        duration: 0.6,
+                        delay: index * 0.1, // Задержка для эффекта "каскада"
+                        ease: "power3.out"
+                    });
+                }
             });
-        } catch(e) { console.error(e); }
+        } catch(e) { 
+            console.error(e); 
+            container.innerHTML = '<p style="color:red; text-align:center;">Ошибка загрузки новостей.</p>';
+        }
     };
 
     // --- УПРАВЛЕНИЕ НОВОСТЯМИ (ЛИДЕР) ---
