@@ -39,11 +39,22 @@ document.addEventListener("DOMContentLoaded", () => {
     const newsModal = document.getElementById('news-modal');
     const closeNewsModal = document.querySelector('.close-news-modal');
     
-    window.openNews = (title, text, tag, date) => {
+    window.openNews = (title, text, tag, date, imageUrl) => {
         document.getElementById('news-modal-title').textContent = title;
         document.getElementById('news-modal-text').innerHTML = text.replace(/\n/g, '<br>');
         document.getElementById('news-modal-tag').textContent = tag;
         document.getElementById('news-modal-date').textContent = date;
+        
+        const imgElement = document.getElementById('news-modal-image');
+        if (imgElement) {
+            if (imageUrl) {
+                imgElement.src = imageUrl;
+                imgElement.style.display = 'block';
+            } else {
+                imgElement.style.display = 'none';
+            }
+        }
+        
         newsModal.style.display = 'flex';
     };
 
@@ -434,6 +445,34 @@ document.addEventListener("DOMContentLoaded", () => {
     const compUpload = setupUpload('comp-file-zone', 'comp-file', 'comp-preview-container');
     const repUpload = setupUpload('rep-file-zone', 'rep-file', 'rep-preview-container');
 
+    // --- ЗАГРУЗКА ОБЛОЖКИ ДЛЯ НОВОСТЕЙ ---
+    let newsImageBase64 = null;
+    const newsFileZone = document.getElementById('news-file-zone');
+    const newsImageInput = document.getElementById('news-image');
+    const newsPreviewContainer = document.getElementById('news-preview-container');
+
+    if (newsFileZone) {
+        newsFileZone.addEventListener('click', () => newsImageInput.click());
+        newsImageInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file && file.type.startsWith('image/')) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    newsImageBase64 = event.target.result;
+                    newsPreviewContainer.innerHTML = `<div class="preview-item"><img src="${newsImageBase64}"><button type="button" class="remove-preview" onclick="window.clearNewsImage(event)">✖</button></div>`;
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+    }
+
+    window.clearNewsImage = (e) => {
+        e.stopPropagation();
+        newsImageBase64 = null;
+        newsImageInput.value = '';
+        newsPreviewContainer.innerHTML = '';
+    };
+
     // --- ОТПРАВКА ФОРМ ---
     const submitForm = (formId, apiUrl, getData, upload) => {
         const form = document.getElementById(formId);
@@ -534,14 +573,20 @@ document.addEventListener("DOMContentLoaded", () => {
             news.forEach(item => {
                 const div = document.createElement('div');
                 div.className = 'news-card';
-                div.onclick = () => window.openNews(item.title, item.text, item.tag, item.date);
+                div.onclick = () => window.openNews(item.title, item.text, item.tag, item.date, item.image);
+                
+                const imgHtml = item.image ? `<div class="news-card-image"><img src="${item.image}" alt="Cover"></div>` : '';
+
                 div.innerHTML = `
-                    <span class="news-tag">${item.tag}</span>
-                    <h3 class="news-title">${item.title}</h3>
-                    <p class="news-excerpt">${item.text.substring(0, 100)}...</p>
-                    <div class="news-footer">
-                        <span class="news-date">${item.date}</span>
-                        <span style="color: var(--accent); font-weight: 600;">Читать →</span>
+                    ${imgHtml}
+                    <div class="news-content">
+                        <span class="news-tag">${item.tag}</span>
+                        <h3 class="news-title">${item.title}</h3>
+                        <p class="news-excerpt">${item.text.substring(0, 100)}...</p>
+                        <div class="news-footer">
+                            <span class="news-date">${item.date}</span>
+                            <span style="color: var(--accent); font-weight: 600;">Читать →</span>
+                        </div>
                     </div>
                 `;
                 container.appendChild(div);
@@ -581,7 +626,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 title: document.getElementById('news-title').value,
                 text: document.getElementById('news-text').value,
                 tag: document.getElementById('news-tag').value,
-                date: new Date().toLocaleDateString('ru-RU')
+                date: new Date().toLocaleDateString('ru-RU'),
+                image: newsImageBase64
             };
             const res = await fetch('/api/leader/news/add', {
                 method: 'POST',
@@ -591,6 +637,7 @@ document.addEventListener("DOMContentLoaded", () => {
             if (res.ok) {
                 alert('Новость опубликована!');
                 addNewsForm.reset();
+                window.clearNewsImage({ stopPropagation: () => {} });
                 loadManageNews();
             }
         });

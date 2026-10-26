@@ -472,13 +472,17 @@ app.get('/api/news', (req, res) => {
 
 app.post('/api/leader/news/add', (req, res) => {
     if (!req.session.user || !req.session.user.isLeader) return res.status(403).json({ error: 'Доступ запрещен' });
-    const { title, text, tag, date } = req.body;
+    const { title, text, tag, date, image } = req.body; // <-- добавили image
     const db = getDB();
     if (!db.news) db.news = [];
     
     db.news.push({
         id: Date.now().toString(),
-        title, text, tag, date
+        title, 
+        text, 
+        tag, 
+        date,
+        image: image || null // <-- сохраняем картинку
     });
     saveDB(db);
     res.json({ success: true });
