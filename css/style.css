@@ -49,16 +49,104 @@ main { flex: 1; display: flex; flex-direction: column; }
 .hero__text { color: var(--text-muted); font-size: 18px; margin: 0 auto 40px; max-width: 600px; font-weight: 400; }
 .hero__buttons { display: flex; gap: 20px; justify-content: center; }
 
-/* Шапка (Glassmorphism) */
-.header { background: rgba(5, 5, 5, 0.6); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-bottom: 1px solid var(--border-glass); position: sticky; top: 0; z-index: 100; }
-.header__container { display: flex; align-items: center; justify-content: space-between; height: 80px; }
-.logo { font-family: 'Montserrat', sans-serif; font-weight: 900; color: var(--text-main); text-decoration: none; display: flex; align-items: center; }
-.logo__img { height: 50px; width: 50px; border-radius: 50%; border: 2px solid var(--border-glass); }
-.nav { display: flex; gap: 30px; }
-.nav__link { color: var(--text-muted); text-decoration: none; font-weight: 500; font-size: 14px; transition: all 0.3s; position: relative; }
-.nav__link:hover, .nav__link.active { color: var(--text-main); text-shadow: 0 0 10px rgba(255,255,255,0.3); }
-.nav__link::after { content: ''; position: absolute; bottom: -5px; left: 0; width: 0; height: 2px; background: var(--accent); transition: width 0.3s; }
-.nav__link:hover::after, .nav__link.active::after { width: 100%; box-shadow: 0 0 10px var(--accent); }
+/* Шапка (Glassmorphism) - ИСПРАВЛЕНО */
+.header { 
+    background: rgba(5, 5, 5, 0.6); 
+    backdrop-filter: blur(20px); 
+    -webkit-backdrop-filter: blur(20px); 
+    border-bottom: 1px solid var(--border-glass); 
+    position: sticky; 
+    top: 0; 
+    z-index: 100; 
+}
+.header__container { 
+    display: flex; 
+    align-items: center; 
+    justify-content: space-between; 
+    height: 80px; 
+    gap: 20px; 
+}
+.logo { 
+    font-family: 'Montserrat', sans-serif; 
+    font-weight: 900; 
+    color: var(--text-main); 
+    text-decoration: none; 
+    display: flex; 
+    align-items: center; 
+    flex-shrink: 0; 
+}
+.logo__img { 
+    height: 50px; 
+    width: 50px; 
+    border-radius: 50%; 
+    border: 2px solid var(--border-glass); 
+}
+.nav { 
+    display: flex; 
+    gap: 25px; 
+    flex-wrap: nowrap; 
+    justify-content: center;
+}
+.nav__link { 
+    color: var(--text-muted); 
+    text-decoration: none; 
+    font-weight: 500; 
+    font-size: 14px; 
+    transition: all 0.3s; 
+    position: relative; 
+    white-space: nowrap; 
+}
+.nav__link:hover, .nav__link.active { 
+    color: var(--text-main); 
+    text-shadow: 0 0 10px rgba(255,255,255,0.3); 
+}
+.nav__link::after { 
+    content: ''; 
+    position: absolute; 
+    bottom: -5px; 
+    left: 0; 
+    width: 0; 
+    height: 2px; 
+    background: var(--accent); 
+    transition: width 0.3s; 
+}
+.nav__link:hover::after, .nav__link.active::after { 
+    width: 100%; 
+    box-shadow: 0 0 10px var(--accent); 
+}
+#auth-container { 
+    display: flex; 
+    align-items: center; 
+    gap: 15px; 
+    flex-shrink: 0; 
+}
+#user-profile { 
+    display: flex; 
+    align-items: center; 
+    gap: 12px; 
+    transition: transform 0.2s; 
+    white-space: nowrap; 
+}
+#user-profile:hover { 
+    transform: scale(1.02); 
+}
+#user-name { 
+    font-weight: 600; 
+    font-size: 15px; 
+    color: var(--text-main);
+    max-width: 150px; 
+    overflow: hidden;
+    text-overflow: ellipsis; 
+}
+#user-balance-wrapper { 
+    display: flex; 
+    align-items: center; 
+    gap: 5px; 
+    background: rgba(16, 185, 129, 0.15); 
+    padding: 6px 12px; 
+    border-radius: 20px; 
+    border: 1px solid rgba(16, 185, 129, 0.3);
+}
 
 /* Кнопки */
 .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 14px 28px; border-radius: 12px; font-weight: 600; font-size: 15px; text-decoration: none; transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1); border: 1px solid transparent; cursor: pointer; }
@@ -159,7 +247,7 @@ main { flex: 1; display: flex; flex-direction: column; }
 .fleet-card__info p { color: var(--text-muted); font-size: 15px; line-height: 1.8; }
 .fleet-card__info b { color: var(--text-main); font-weight: 600; }
 
-/* ФОРМЫ (Трудоустройство, Жалобы) */
+/* ФОРМЫ */
 .form-container { max-width: 700px; margin: 0 auto; background: rgba(255, 255, 255, 0.02); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); padding: 50px; border-radius: 30px; border: 1px solid var(--border-glass); box-shadow: 0 30px 60px rgba(0,0,0,0.4), inset 0 0 0 1px rgba(255,255,255,0.05); transition: transform 0.4s ease, border-color 0.4s ease; }
 .form-container:hover { border-color: rgba(255, 0, 60, 0.2); }
 .form-group { margin-bottom: 28px; }
