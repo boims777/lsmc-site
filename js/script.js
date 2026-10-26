@@ -35,6 +35,25 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById('rep-date').value = getFormattedDate();
     document.getElementById('rep-week').value = getWeekRange();
 
+    // --- МОДАЛЬНОЕ ОКНО НОВОСТЕЙ ---
+    const newsModal = document.getElementById('news-modal');
+    const closeNewsModal = document.querySelector('.close-news-modal');
+    
+    window.openNews = (title, text, tag, date) => {
+        document.getElementById('news-modal-title').textContent = title;
+        document.getElementById('news-modal-text').innerHTML = text.replace(/\n/g, '<br>');
+        document.getElementById('news-modal-tag').textContent = tag;
+        document.getElementById('news-modal-date').textContent = date;
+        newsModal.style.display = 'flex';
+    };
+
+    if (closeNewsModal) {
+        closeNewsModal.addEventListener('click', () => newsModal.style.display = 'none');
+    }
+    window.addEventListener('click', (e) => {
+        if (e.target === newsModal) newsModal.style.display = 'none';
+    });
+
     // --- МОДАЛЬНОЕ ОКНО ДЛЯ СКРИНШОТОВ ---
     const screenshotModal = document.getElementById('screenshot-modal');
     const screenshotContainer = document.getElementById('screenshot-container');
@@ -92,6 +111,9 @@ document.addEventListener("DOMContentLoaded", () => {
             loadStats();
             switchStaffSub('stats');
         }
+        if(targetId === 'news') {
+            loadNews();
+        }
     };
 
     navLinks.forEach(link => {
@@ -144,6 +166,7 @@ document.addEventListener("DOMContentLoaded", () => {
                         document.getElementById('menu-reviews').style.display = 'block';
                     }
                     if(data.isLeader) {
+                        document.getElementById('menu-manage-news').style.display = 'block';
                         document.getElementById('menu-manage-shop').style.display = 'block';
                         document.getElementById('menu-orders').style.display = 'block';
                     }
@@ -294,6 +317,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (subId === 'orders') loadOrders();
         if (subId === 'my-reports') loadMyReports();
         if (subId === 'my-orders') loadMyOrders();
+        if (subId === 'manage-news') loadManageNews();
     };
 
     staffMenuLinks.forEach(link => {
@@ -354,7 +378,7 @@ document.addEventListener("DOMContentLoaded", () => {
         } catch(e) { console.error(e); }
     };
 
-    // --- ЗАГРУЗКА ФАЙЛОВ (С ОГРАНИЧЕНИЕМ 5 ШТУК) ---
+    // --- ЗАГРУЗКА ФАЙЛОВ (5 ШТУК) ---
     const setupUpload = (zoneId, inputId, previewId) => {
         const zone = document.getElementById(zoneId);
         const input = document.getElementById(inputId);
@@ -495,7 +519,94 @@ document.addEventListener("DOMContentLoaded", () => {
         text: document.getElementById('rep-text').value,
     }), repUpload);
 
-    // --- ПРОВЕРКА ОТЧЕТОВ (ДЛЯ ХАЙ СТАФФ) ---
+    // --- НОВОСТИ ---
+    const loadNews = async () => {
+        const container = document.getElementById('news-grid');
+        try {
+            const res = await fetch('/api/news');
+            const news = await res.json();
+            container.innerHTML = '';
+            if(news.length === 0) {
+                container.innerHTML = '<p style="color:var(--text-muted); text-align:center; width:100%; grid-column: 1 / -1;">Пока нет новостей.</p>';
+                return;
+            }
+            
+            news.forEach(item => {
+                const div = document.createElement('div');
+                div.className = 'news-card';
+                div.onclick = () => window.openNews(item.title, item.text, item.tag, item.date);
+                div.innerHTML = `
+                    <span class="news-tag">${item.tag}</span>
+                    <h3 class="news-title">${item.title}</h3>
+                    <p class="news-excerpt">${item.text.substring(0, 100)}...</p>
+                    <div class="news-footer">
+                        <span class="news-date">${item.date}</span>
+                        <span style="color: var(--accent); font-weight: 600;">Читать →</span>
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+        } catch(e) { console.error(e); }
+    };
+
+    // --- УПРАВЛЕНИЕ НОВОСТЯМИ (ЛИДЕР) ---
+    const loadManageNews = async () => {
+        const container = document.getElementById('manage-news-list');
+        try {
+            const res = await fetch('/api/news');
+            const news = await res.json();
+            container.innerHTML = '';
+            if(news.length === 0) {
+                container.innerHTML = '<p style="color:var(--text-muted);">Новостей пока нет.</p>';
+                return;
+            }
+            news.forEach(item => {
+                const div = document.createElement('div');
+                div.className = 'report-item';
+                div.innerHTML = `
+                    <h4>${item.title} <span style="color: var(--accent); font-size: 12px;">[${item.tag}]</span></h4>
+                    <p>${item.text.substring(0, 80)}...</p>
+                    <button class="btn btn--outline" onclick="deleteNews('${item.id}')" style="margin-top: 10px;">Удалить</button>
+                `;
+                container.appendChild(div);
+            });
+        } catch(e) { console.error(e); }
+    };
+
+    const addNewsForm = document.getElementById('add-news-form');
+    if(addNewsForm) {
+        addNewsForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const data = {
+                title: document.getElementById('news-title').value,
+                text: document.getElementById('news-text').value,
+                tag: document.getElementById('news-tag').value,
+                date: new Date().toLocaleDateString('ru-RU')
+            };
+            const res = await fetch('/api/leader/news/add', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            if (res.ok) {
+                alert('Новость опубликована!');
+                addNewsForm.reset();
+                loadManageNews();
+            }
+        });
+    }
+
+    window.deleteNews = async (id) => {
+        if(!confirm('Удалить новость?')) return;
+        const res = await fetch('/api/leader/news/remove', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ newsId: id })
+        });
+        if (res.ok) { alert('Новость удалена'); loadManageNews(); }
+    };
+
+    // --- ПРОВЕРКА ОТЧЕТОВ (ХАЙ СТАФФ) ---
     const loadPendingReports = async () => {
         const container = document.getElementById('pending-reports-list');
         try {

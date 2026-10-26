@@ -14,8 +14,7 @@ const CLIENT_SECRET = '7HxG9VQHJFptlnU5OTY17XFKscAY6Zhz';
 const REDIRECT_URI = 'https://lsmc-site.onrender.com/auth/discord/callback';
 const GUILD_ID = '1176546172240928808'; 
 
-// ⚠️ ТОКЕН БОТА ТЕПЕРЬ БЕРЕТСЯ ИЗ ПЕРЕМЕННЫХ ОКРУЖЕНИЯ RENDER
-// Убедись, что на Render во вкладке Environment добавлена переменная BOT_TOKEN
+// ⚠️ ТОКЕН БОТА БЕРЕТСЯ ИЗ ПЕРЕМЕННЫХ ОКРУЖЕНИЯ RENDER
 const BOT_TOKEN = process.env.BOT_TOKEN; 
 
 // --- ID РОЛЕЙ ---
@@ -37,6 +36,7 @@ if (!fs.existsSync(DB_FILE)) {
         users: {}, 
         reports: [],
         orders: [],
+        news: [], // <--- ДОБАВЛЕНО ДЛЯ НОВОСТЕЙ
         shop: [
             { id: 'cash_10k', icon: '💵', name: '10.000$ наличными', price: 500, desc: 'Обмен валюты на игровые деньги' },
             { id: 'med_kit', icon: '💊', name: 'Аптечка', price: 300, desc: 'Пополнение запасов' },
@@ -64,7 +64,7 @@ const getStartOfWeek = (date) => {
     return new Date(d.setDate(diff)).setHours(0,0,0,0);
 };
 
-// --- АВТОРИЗАЦИЯ (С ЛОГИРОВАНИЕМ) ---
+// --- АВТОРИЗАЦИЯ ---
 app.get('/auth/discord', (req, res) => {
     const url = `https://discord.com/api/oauth2/authorize?client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&response_type=code&scope=identify%20guilds%20guilds.members.read`;
     res.redirect(url);
@@ -121,7 +121,6 @@ app.get('/auth/discord/callback', async (req, res) => {
             if (isHighStaff) isStaff = true;
 
         } catch (e) { 
-            // ❗ ЕСЛИ ОШИБКА, МЫ УВИДИМ ЕЕ ЗДЕСЬ
             console.error("==================================================");
             console.error("[ОШИБКА БОТА] Не удалось получить данные участника!");
             if (e.response) {
@@ -417,11 +416,13 @@ app.post('/api/staff/checkout', async (req, res) => {
     res.json({ success: true, newBalance: user.balance });
 });
 
+// --- МАГАЗИН ---
 app.get('/api/staff/shop', (req, res) => {
     const db = getDB();
     res.json(db.shop || []);
 });
 
+// --- УПРАВЛЕНИЕ МАГАЗИНОМ (LEADER) ---
 app.post('/api/leader/shop/add', (req, res) => {
     if (!req.session.user || !req.session.user.isLeader) return res.status(403).json({ error: 'Доступ запрещен' });
     const { name, price, desc, icon } = req.body;
@@ -441,6 +442,7 @@ app.post('/api/leader/shop/remove', (req, res) => {
     res.json({ success: true });
 });
 
+// --- ЗАКАЗЫ (ВЫДАЧА) ---
 app.get('/api/staff/orders', (req, res) => {
     if (!req.session.user || !req.session.user.isLeader) return res.status(403).json({ error: 'Доступ запрещен' });
     const db = getDB();
@@ -458,6 +460,36 @@ app.post('/api/staff/order/review', (req, res) => {
     if (action === 'rejected' && reason) {
         order.reason = reason;
     }
+    saveDB(db);
+    res.json({ success: true });
+});
+
+// --- НОВОСТИ ---
+app.get('/api/news', (req, res) => {
+    const db = getDB();
+    res.json(db.news || []);
+});
+
+app.post('/api/leader/news/add', (req, res) => {
+    if (!req.session.user || !req.session.user.isLeader) return res.status(403).json({ error: 'Доступ запрещен' });
+    const { title, text, tag, date } = req.body;
+    const db = getDB();
+    if (!db.news) db.news = [];
+    
+    db.news.push({
+        id: Date.now().toString(),
+        title, text, tag, date
+    });
+    saveDB(db);
+    res.json({ success: true });
+});
+
+app.post('/api/leader/news/remove', (req, res) => {
+    if (!req.session.user || !req.session.user.isLeader) return res.status(403).json({ error: 'Доступ запрещен' });
+    const { newsId } = req.body;
+    const db = getDB();
+    if (!db.news) db.news = [];
+    db.news = db.news.filter(n => n.id !== newsId);
     saveDB(db);
     res.json({ success: true });
 });
