@@ -12,8 +12,11 @@ const PORT = process.env.PORT || 3000;
 const CLIENT_ID = '1563879760843505664'; 
 const CLIENT_SECRET = '7HxG9VQHJFptlnU5OTY17XFKscAY6Zhz'; 
 const REDIRECT_URI = 'https://lsmc-site.onrender.com/auth/discord/callback';
-const GUILD_ID = '1176546172240928808';
-const BOT_TOKEN = process.env.BOT_TOKEN;
+const GUILD_ID = '1176546172240928808'; 
+
+// ⚠️ ТОКЕН БОТА ТЕПЕРЬ БЕРЕТСЯ ИЗ ПЕРЕМЕННЫХ ОКРУЖЕНИЯ RENDER
+// Убедись, что на Render во вкладке Environment добавлена переменная BOT_TOKEN
+const BOT_TOKEN = process.env.BOT_TOKEN; 
 
 // --- ID РОЛЕЙ ---
 const STAFF_ROLE_ID = '1474051546361762024';      // Сотрудник
