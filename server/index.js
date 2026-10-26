@@ -14,7 +14,6 @@ const CLIENT_SECRET = '7HxG9VQHJFptlnU5OTY17XFKscAY6Zhz';
 const REDIRECT_URI = 'https://lsmc-site.onrender.com/auth/discord/callback';
 const GUILD_ID = '1176546172240928808'; 
 
-// ⚠️ ТОКЕН БОТА БЕРЕТСЯ ИЗ ПЕРЕМЕННЫХ ОКРУЖЕНИЯ RENDER
 const BOT_TOKEN = process.env.BOT_TOKEN; 
 
 // --- ID РОЛЕЙ ---
@@ -36,7 +35,7 @@ if (!fs.existsSync(DB_FILE)) {
         users: {}, 
         reports: [],
         orders: [],
-        news: [], // <--- ДОБАВЛЕНО ДЛЯ НОВОСТЕЙ
+        news: [],
         shop: [
             { id: 'cash_10k', icon: '💵', name: '10.000$ наличными', price: 500, desc: 'Обмен валюты на игровые деньги' },
             { id: 'med_kit', icon: '💊', name: 'Аптечка', price: 300, desc: 'Пополнение запасов' },
@@ -60,7 +59,7 @@ app.use(session({
 const getStartOfWeek = (date) => {
     const d = new Date(date);
     const day = d.getDay();
-    const diff = d.getDate() - day + (day === 0 ? -6 : 1); // Понедельник
+    const diff = d.getDate() - day + (day === 0 ? -6 : 1);
     return new Date(d.setDate(diff)).setHours(0,0,0,0);
 };
 
@@ -75,7 +74,6 @@ app.get('/auth/discord/callback', async (req, res) => {
     if (!code) return res.redirect('/index.html');
 
     try {
-        // 1. Получаем токен пользователя (OAuth2)
         const tokenResponse = await axios.post('https://discord.com/api/oauth2/token', new URLSearchParams({
             client_id: CLIENT_ID,
             client_secret: CLIENT_SECRET,
@@ -86,32 +84,23 @@ app.get('/auth/discord/callback', async (req, res) => {
 
         const accessToken = tokenResponse.data.access_token;
         
-        // 2. Получаем базовые данные пользователя (ID и Аватар)
         const userResponse = await axios.get('https://discord.com/api/users/@me', {
             headers: { Authorization: `Bearer ${accessToken}` }
         });
         const user = userResponse.data;
 
         let isStaff = false, isHighStaff = false, isLeader = false;
-        let serverNickname = user.username; // По умолчанию - глобальный ник
+        let serverNickname = user.username;
         
         try {
-            // 3. Используем БОТА, чтобы получить данные участника на конкретном сервере (включая ник)
-            console.log(`[БОТ] Запрос данных для пользователя ID: ${user.id}`);
-            
             const memberResponse = await axios.get(`https://discord.com/api/guilds/${GUILD_ID}/members/${user.id}`, {
                 headers: { Authorization: `Bot ${BOT_TOKEN}` }
             });
             const member = memberResponse.data;
             const roles = member.roles;
             
-            // Если на сервере есть установленный ник (Nickname), используем его. Иначе - глобальный.
-            if (member.nick) {
-                serverNickname = member.nick;
-            }
-            console.log(`[БОТ] Успех! Ник: ${serverNickname}, Роли: ${roles.join(', ')}`);
+            if (member.nick) serverNickname = member.nick;
 
-            // Проверка ролей
             if (roles.includes(STAFF_ROLE_ID)) isStaff = true;
             if (roles.includes(HIGH_STAFF_ROLE_ID)) isHighStaff = true;
             if (roles.includes(DEPUTY_ROLE_ID)) isLeader = true;
@@ -121,18 +110,9 @@ app.get('/auth/discord/callback', async (req, res) => {
             if (isHighStaff) isStaff = true;
 
         } catch (e) { 
-            console.error("==================================================");
-            console.error("[ОШИБКА БОТА] Не удалось получить данные участника!");
-            if (e.response) {
-                console.error("Статус:", e.response.status);
-                console.error("Ответ Discord:", e.response.data);
-            } else {
-                console.error("Текст ошибки:", e.message);
-            }
-            console.error("==================================================");
+            console.error("Ошибка получения данных участника:", e.message);
         }
 
-        // Записываем в сессию серверный ник
         req.session.user = { 
             id: user.id, 
             username: serverNickname, 
@@ -142,17 +122,18 @@ app.get('/auth/discord/callback', async (req, res) => {
         
         const db = getDB();
         if (!db.users[user.id]) {
-            db.users[user.id] = { balance: 0, inventory: [], totalEarned: 0, avatar: user.avatar, username: serverNickname };
+            db.users[user.id] = { balance: 0, inventory: [], totalEarned: 0, avatar: user.avatar, username: serverNickname, warnings: 0 };
             saveDB(db);
         } else {
             db.users[user.id].avatar = user.avatar;
             db.users[user.id].username = serverNickname;
+            if (db.users[user.id].warnings === undefined) db.users[user.id].warnings = 0;
             saveDB(db);
         }
 
         res.redirect('/index.html'); 
     } catch (error) {
-        console.error("Ошибка OAuth2 (вход):", error.message);
+        console.error("Ошибка OAuth2:", error.message);
         res.redirect('/index.html');
     }
 });
@@ -160,7 +141,7 @@ app.get('/auth/discord/callback', async (req, res) => {
 app.get('/api/me', (req, res) => {
     if (req.session.user) {
         const db = getDB();
-        const userDb = db.users[req.session.user.id] || { balance: 0, inventory: [], totalEarned: 0, avatar: '' };
+        const userDb = db.users[req.session.user.id] || { balance: 0, inventory: [], totalEarned: 0, avatar: '', warnings: 0 };
         res.json({ ...req.session.user, ...userDb });
     } else {
         res.json({ isStaff: false, isHighStaff: false, isLeader: false, username: null });
@@ -472,7 +453,7 @@ app.get('/api/news', (req, res) => {
 
 app.post('/api/leader/news/add', (req, res) => {
     if (!req.session.user || !req.session.user.isLeader) return res.status(403).json({ error: 'Доступ запрещен' });
-    const { title, text, tag, date, image } = req.body; // <-- добавили image
+    const { title, text, tag, date, image } = req.body; 
     const db = getDB();
     if (!db.news) db.news = [];
     
@@ -482,7 +463,7 @@ app.post('/api/leader/news/add', (req, res) => {
         text, 
         tag, 
         date,
-        image: image || null // <-- сохраняем картинку
+        image: image || null 
     });
     saveDB(db);
     res.json({ success: true });
@@ -496,6 +477,73 @@ app.post('/api/leader/news/remove', (req, res) => {
     db.news = db.news.filter(n => n.id !== newsId);
     saveDB(db);
     res.json({ success: true });
+});
+
+// --- БАЗА ДАННЫХ СОТРУДНИКОВ (ДЛЯ ЛИДЕРА) ---
+
+// Получить список всех пользователей
+app.get('/api/leader/users', (req, res) => {
+    if (!req.session.user || !req.session.user.isLeader) return res.status(403).json({ error: 'Доступ запрещен' });
+    const db = getDB();
+    
+    const users = Object.keys(db.users).map(id => {
+        const u = db.users[id];
+        return {
+            id: id,
+            username: u.username || 'Неизвестный',
+            avatar: u.avatar || null,
+            balance: u.balance || 0,
+            totalEarned: u.totalEarned || 0,
+            inventory: u.inventory || [],
+            warnings: u.warnings || 0
+        };
+    });
+    
+    users.sort((a, b) => b.balance - a.balance);
+    res.json(users);
+});
+
+// Изменить баланс пользователя
+app.post('/api/leader/users/balance', (req, res) => {
+    if (!req.session.user || !req.session.user.isLeader) return res.status(403).json({ error: 'Доступ запрещен' });
+    const { userId, amount, action } = req.body; // action: 'add' или 'remove'
+    const db = getDB();
+    
+    if (!db.users[userId]) return res.status(404).json({ error: 'Пользователь не найден' });
+    
+    const user = db.users[userId];
+    const parsedAmount = parseInt(amount);
+    
+    if (isNaN(parsedAmount) || parsedAmount <= 0) return res.status(400).json({ error: 'Неверная сумма' });
+
+    if (action === 'add') {
+        user.balance = (user.balance || 0) + parsedAmount;
+        user.totalEarned = (user.totalEarned || 0) + parsedAmount;
+    } else if (action === 'remove') {
+        if (user.balance < parsedAmount) return res.status(400).json({ error: 'Недостаточно средств у сотрудника' });
+        user.balance -= parsedAmount;
+    }
+
+    saveDB(db);
+    res.json({ success: true, newBalance: user.balance });
+});
+
+// Изменить количество предупреждений (варнов)
+app.post('/api/leader/users/warn', (req, res) => {
+    if (!req.session.user || !req.session.user.isLeader) return res.status(403).json({ error: 'Доступ запрещен' });
+    const { userId, action } = req.body; // action: 'add' или 'remove'
+    const db = getDB();
+    
+    if (!db.users[userId]) return res.status(404).json({ error: 'Пользователь не найден' });
+    
+    const user = db.users[userId];
+    user.warnings = user.warnings || 0;
+
+    if (action === 'add') user.warnings++;
+    else if (action === 'remove' && user.warnings > 0) user.warnings--;
+
+    saveDB(db);
+    res.json({ success: true, warnings: user.warnings });
 });
 
 app.listen(PORT, '0.0.0.0', () => {
