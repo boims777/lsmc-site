@@ -224,12 +224,74 @@
 
                     <!-- Вкладка: Статистика -->
                     <div class="staff-sub-section active" id="sub-stats">
-                        <h2 class="staff-title">Ваша статистика</h2>
+                        <div class="stats-header">
+                            <h2 class="staff-title" style="margin-bottom: 5px;">Ваша статистика</h2>
+                            <p style="color: var(--text-muted); font-size: 16px;">Добро пожаловать, <span id="stats-username" style="color: white; font-weight: 600;">Сотрудник</span>! Вот ваши результаты.</p>
+                        </div>
+
                         <div class="stats-grid">
-                            <div class="stat-card"><span class="stat-label">Баланс</span><strong class="stat-value" id="stat-balance">0 LSMC</strong></div>
-                            <div class="stat-card"><span class="stat-label">Всего заработано</span><strong class="stat-value" id="stat-earned">0 LSMC</strong></div>
-                            <div class="stat-card"><span class="stat-label">Отправлено отчетов</span><strong class="stat-value" id="stat-total">0</strong></div>
-                            <div class="stat-card"><span class="stat-label">Одобрено</span><strong class="stat-value" id="stat-approved">0</strong></div>
+                            <!-- Баланс -->
+                            <div class="stat-card balance-card">
+                                <div class="stat-icon">💰</div>
+                                <div class="stat-info">
+                                    <span class="stat-label">Баланс</span>
+                                    <strong class="stat-value" id="stat-balance">0</strong>
+                                    <span class="stat-currency">LSMC</span>
+                                </div>
+                            </div>
+                            
+                            <!-- Всего заработано -->
+                            <div class="stat-card earned-card">
+                                <div class="stat-icon">📈</div>
+                                <div class="stat-info">
+                                    <span class="stat-label">Всего заработано</span>
+                                    <strong class="stat-value" id="stat-earned">0</strong>
+                                    <span class="stat-currency">LSMC</span>
+                                </div>
+                            </div>
+                            
+                            <!-- Отправлено отчетов -->
+                            <div class="stat-card total-card">
+                                <div class="stat-icon">📝</div>
+                                <div class="stat-info">
+                                    <span class="stat-label">Отправлено отчетов</span>
+                                    <strong class="stat-value" id="stat-total">0</strong>
+                                    <span class="stat-currency">шт.</span>
+                                </div>
+                            </div>
+                            
+                            <!-- Одобрено -->
+                            <div class="stat-card approved-card">
+                                <div class="stat-icon">✅</div>
+                                <div class="stat-info">
+                                    <span class="stat-label">Одобрено</span>
+                                    <strong class="stat-value" id="stat-approved">0</strong>
+                                    <span class="stat-currency">шт.</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Блок быстрых действий -->
+                        <div class="quick-actions-block">
+                            <h3 class="quick-actions-title">Быстрые действия</h3>
+                            <div class="quick-actions-grid">
+                                <button class="quick-action-btn" onclick="document.querySelector('[data-sub=\'cabinet\']').click()">
+                                    <span class="qa-icon">📤</span>
+                                    <span>Сдать отчет</span>
+                                </button>
+                                <button class="quick-action-btn" onclick="document.querySelector('[data-sub=\'shop\']').click()">
+                                    <span class="qa-icon">🛒</span>
+                                    <span>Магазин наград</span>
+                                </button>
+                                <button class="quick-action-btn" onclick="document.querySelector('[data-sub=\'my-reports\']').click()">
+                                    <span class="qa-icon">📂</span>
+                                    <span>Мои отчеты</span>
+                                </button>
+                                <button class="quick-action-btn" id="qa-review-btn" style="display: none;" onclick="document.querySelector('[data-sub=\'reviews\']').click()">
+                                    <span class="qa-icon">🔍</span>
+                                    <span>Проверка отчетов</span>
+                                </button>
+                            </div>
                         </div>
                     </div>
 
@@ -289,7 +351,7 @@
                                 <div class="form-group">
                                     <label>Обложка новости (картинка)</label>
                                     <div class="file-upload-zone" id="news-file-zone">
-                                        <p>Нажмите или перетащите сюда картинку</p>
+                                        <p>Нажмите, перетащите или вставьте (Ctrl+V)</p>
                                         <input type="file" id="news-image" accept="image/*" style="display: none;">
                                         <div class="preview-container" id="news-preview-container"></div>
                                     </div>

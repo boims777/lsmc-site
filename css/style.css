@@ -198,11 +198,157 @@ main { flex: 1; display: flex; flex-direction: column; }
 .staff-sub-section.active { display: block; }
 
 /* СТАТИСТИКА */
-.stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; }
-.stat-card { background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.05); border-radius: 20px; padding: 25px; display: flex; flex-direction: column; gap: 10px; transition: all 0.3s ease; }
-.stat-card:hover { transform: translateY(-5px); border-color: var(--accent); box-shadow: 0 10px 30px rgba(255, 0, 60, 0.1); }
-.stat-label { color: var(--text-muted); font-size: 14px; text-transform: uppercase; letter-spacing: 1px; font-weight: 600; }
-.stat-value { font-family: 'Montserrat', sans-serif; font-size: 32px; color: var(--accent); font-weight: 800; text-shadow: 0 0 20px var(--accent-glow); }
+.stats-header {
+    margin-bottom: 30px;
+}
+
+.stats-grid { 
+    display: grid; 
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); 
+    gap: 20px; 
+    margin-bottom: 40px;
+}
+
+/* Базовый стиль карточки */
+.stat-card { 
+    background: rgba(255, 255, 255, 0.02); 
+    border: 1px solid rgba(255,255,255,0.05); 
+    border-radius: 20px; 
+    padding: 25px; 
+    display: flex; 
+    align-items: center;
+    gap: 20px;
+    transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1); 
+    position: relative;
+    overflow: hidden;
+}
+
+/* Цветные блики на фоне карточек */
+.stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: radial-gradient(circle at top right, rgba(255,255,255,0.05), transparent 60%);
+    pointer-events: none;
+}
+
+.stat-card:hover { 
+    transform: translateY(-5px); 
+    border-color: rgba(255, 255, 255, 0.15);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3); 
+}
+
+/* Иконки */
+.stat-icon {
+    font-size: 32px;
+    background: rgba(255,255,255,0.05);
+    width: 60px; height: 60px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 16px;
+    flex-shrink: 0;
+    transition: transform 0.3s ease;
+}
+
+.stat-card:hover .stat-icon {
+    transform: scale(1.1) rotate(5deg);
+}
+
+/* Текст */
+.stat-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.stat-label { 
+    color: var(--text-muted); 
+    font-size: 13px; 
+    text-transform: uppercase; 
+    letter-spacing: 1px; 
+    font-weight: 600; 
+    margin-bottom: 5px;
+}
+
+.stat-value { 
+    font-family: 'Montserrat', sans-serif; 
+    font-size: 32px; 
+    color: white; 
+    font-weight: 800; 
+    line-height: 1.1;
+}
+
+.stat-currency {
+    font-size: 14px;
+    color: var(--text-muted);
+    font-weight: 600;
+    margin-left: 5px;
+}
+
+/* Индивидуальные стили для каждой карточки (цвета) */
+.balance-card .stat-icon { background: rgba(16, 185, 129, 0.15); color: var(--success); }
+.balance-card:hover { border-color: rgba(16, 185, 129, 0.4); box-shadow: 0 10px 30px rgba(16, 185, 129, 0.15); }
+.balance-card .stat-value { color: var(--success); text-shadow: 0 0 20px rgba(16, 185, 129, 0.3); }
+
+.earned-card .stat-icon { background: rgba(251, 191, 36, 0.15); color: var(--gold); }
+.earned-card:hover { border-color: rgba(251, 191, 36, 0.4); box-shadow: 0 10px 30px rgba(251, 191, 36, 0.15); }
+.earned-card .stat-value { color: var(--gold); text-shadow: 0 0 20px rgba(251, 191, 36, 0.3); }
+
+.total-card .stat-icon { background: rgba(88, 101, 242, 0.15); color: var(--discord); }
+.total-card:hover { border-color: rgba(88, 101, 242, 0.4); box-shadow: 0 10px 30px rgba(88, 101, 242, 0.15); }
+.total-card .stat-value { color: var(--discord); text-shadow: 0 0 20px rgba(88, 101, 242, 0.3); }
+
+.approved-card .stat-icon { background: rgba(255, 0, 60, 0.15); color: var(--accent); }
+.approved-card:hover { border-color: rgba(255, 0, 60, 0.4); box-shadow: 0 10px 30px rgba(255, 0, 60, 0.15); }
+.approved-card .stat-value { color: var(--accent); text-shadow: 0 0 20px rgba(255, 0, 60, 0.3); }
+
+/* Блок быстрых действий */
+.quick-actions-block {
+    background: rgba(0,0,0,0.2);
+    border: 1px solid rgba(255,255,255,0.05);
+    border-radius: 20px;
+    padding: 25px;
+}
+
+.quick-actions-title {
+    font-family: 'Montserrat', sans-serif;
+    color: white;
+    font-size: 18px;
+    margin-bottom: 20px;
+    font-weight: 700;
+}
+
+.quick-actions-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 15px;
+}
+
+.quick-action-btn {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.08);
+    padding: 15px 20px;
+    border-radius: 12px;
+    color: var(--text-muted);
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-align: left;
+}
+
+.quick-action-btn:hover {
+    background: rgba(255, 0, 60, 0.1);
+    border-color: var(--accent);
+    color: white;
+    transform: translateY(-2px);
+}
+
+.quick-action-btn .qa-icon {
+    font-size: 20px;
+}
 
 /* УПРАВЛЕНИЕ МАГАЗИНОМ И НОВОСТЯМИ */
 .staff-sub-section .form-container { max-width: 100%; padding: 30px; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.05); border-radius: 20px; margin-bottom: 30px; }
@@ -245,16 +391,16 @@ main { flex: 1; display: flex; flex-direction: column; }
 /* НОВОСТИ (Premium Style) */
 .news-grid { 
     display: flex; 
-    flex-direction: column; /* Выстраиваем в колонку */
+    flex-direction: column;
     gap: 20px; 
     margin-top: 40px; 
-    max-width: 900px; /* Ограничиваем ширину для читаемости */
+    max-width: 900px;
     margin-left: auto;
     margin-right: auto;
 }
 
 .news-card { 
-    display: flex; /* Горизонтальное расположение картинки и текста */
+    display: flex; 
     flex-direction: row;
     background: var(--bg-card); 
     backdrop-filter: blur(16px); 
@@ -268,7 +414,6 @@ main { flex: 1; display: flex; flex-direction: column; }
     min-height: 180px;
 }
 
-/* Красивая полоска слева при наведении */
 .news-card::before { 
     content: ''; 
     position: absolute; 
@@ -282,7 +427,7 @@ main { flex: 1; display: flex; flex-direction: column; }
 }
 
 .news-card:hover { 
-    transform: translateX(10px); /* Сдвиг вправо вместо поднятия */
+    transform: translateX(10px);
     border-color: rgba(255, 0, 60, 0.4); 
     box-shadow: 0 20px 40px rgba(0,0,0,0.4), 0 0 20px rgba(255, 0, 60, 0.15); 
 }
@@ -291,9 +436,8 @@ main { flex: 1; display: flex; flex-direction: column; }
     opacity: 1; 
 }
 
-/* Картинка слева */
 .news-card-image {
-    width: 280px; /* Фиксированная ширина картинки */
+    width: 280px;
     flex-shrink: 0;
     overflow: hidden;
     border-right: 1px solid rgba(255,255,255,0.05);
@@ -311,7 +455,6 @@ main { flex: 1; display: flex; flex-direction: column; }
     transform: scale(1.08);
 }
 
-/* Контент справа */
 .news-content {
     padding: 25px 30px;
     display: flex;
@@ -351,7 +494,7 @@ main { flex: 1; display: flex; flex-direction: column; }
     margin-bottom: 20px; 
     flex-grow: 1; 
     display: -webkit-box;
-    -webkit-line-clamp: 2; /* Обрезаем текст после 2 строк */
+    -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
 }
@@ -370,7 +513,6 @@ main { flex: 1; display: flex; flex-direction: column; }
     font-weight: 500; 
 }
 
-/* Адаптив для мобильных (чтобы картинка была сверху) */
 @media (max-width: 768px) {
     .news-card {
         flex-direction: column;
@@ -382,11 +524,10 @@ main { flex: 1; display: flex; flex-direction: column; }
         border-bottom: 1px solid rgba(255,255,255,0.05);
     }
     .news-card:hover {
-        transform: translateY(-5px); /* На телефоне лучше поднимать */
+        transform: translateY(-5px);
     }
 }
 
-/* Картинка в модалке новостей */
 #news-modal-image {
     width: 100%;
     max-height: 400px;
@@ -396,7 +537,6 @@ main { flex: 1; display: flex; flex-direction: column; }
     border: 1px solid rgba(255,255,255,0.1);
 }
 
-/* Адаптив */
 @media (max-width: 1024px) {
     #add-shop-item-form { grid-template-columns: 1fr 1fr; }
     #add-shop-item-form button { grid-column: span 2; }

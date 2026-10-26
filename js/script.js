@@ -345,11 +345,48 @@ document.addEventListener("DOMContentLoaded", () => {
         try {
             const res = await fetch('/api/staff/stats');
             const data = await res.json();
-            document.getElementById('stat-balance').textContent = `${data.balance} LSMC`;
-            document.getElementById('stat-earned').textContent = `${data.totalEarned} LSMC`;
-            document.getElementById('stat-total').textContent = data.totalReports;
-            document.getElementById('stat-approved').textContent = data.approvedReports;
-        } catch(e) { console.error(e); }
+            
+            // Показываем имя пользователя
+            if (currentUser && currentUser.username) {
+                const statsUsername = document.getElementById('stats-username');
+                if (statsUsername) statsUsername.textContent = currentUser.username;
+            }
+
+            // Показываем кнопку "Проверка отчетов", если есть права
+            if (currentUser && currentUser.isHighStaff) {
+                const reviewBtn = document.getElementById('qa-review-btn');
+                if (reviewBtn) reviewBtn.style.display = 'flex';
+            }
+
+            // Функция для красивой анимации чисел
+            const animateValue = (id, endValue, duration = 1000) => {
+                const obj = document.getElementById(id);
+                if (!obj) return;
+                let startTimestamp = null;
+                const step = (timestamp) => {
+                    if (!startTimestamp) startTimestamp = timestamp;
+                    const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+                    // Плавное замедление в конце
+                    const easeOutQuart = 1 - Math.pow(1 - progress, 4);
+                    obj.textContent = Math.floor(easeOutQuart * endValue);
+                    if (progress < 1) {
+                        window.requestAnimationFrame(step);
+                    } else {
+                        obj.textContent = endValue; // Устанавливаем точное значение в конце
+                    }
+                };
+                window.requestAnimationFrame(step);
+            };
+
+            // Запускаем анимацию
+            animateValue('stat-balance', data.balance);
+            animateValue('stat-earned', data.totalEarned);
+            animateValue('stat-total', data.totalReports);
+            animateValue('stat-approved', data.approvedReports);
+
+        } catch(e) { 
+            console.error('Ошибка загрузки статистики:', e); 
+        }
     };
 
     // --- ДОСКА ПОЧЕТА ---
@@ -663,10 +700,9 @@ document.addEventListener("DOMContentLoaded", () => {
         } catch(e) { console.error(e); }
     };
 
-    // Форма добавления новостей теперь использует общий механизм submitForm
+    // Форма добавления новостей
     const addNewsForm = document.getElementById('add-news-form');
     if(addNewsForm) {
-        // Переопределяем сабмит, так как логика с картинкой отличается (нужна только одна, не массив)
         addNewsForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const files = newsUpload.get();
