@@ -30,10 +30,11 @@ document.addEventListener("DOMContentLoaded", () => {
         return `${format(monday)} - ${format(sunday)}`;
     };
 
-    document.getElementById('job-date').value = getFormattedDate();
-    document.getElementById('comp-date').value = getFormattedDate();
-    document.getElementById('rep-date').value = getFormattedDate();
-    document.getElementById('rep-week').value = getWeekRange();
+    // Устанавливаем даты, если элементы существуют
+    if(document.getElementById('job-date')) document.getElementById('job-date').value = getFormattedDate();
+    if(document.getElementById('comp-date')) document.getElementById('comp-date').value = getFormattedDate();
+    if(document.getElementById('rep-date')) document.getElementById('rep-date').value = getFormattedDate();
+    if(document.getElementById('rep-week')) document.getElementById('rep-week').value = getWeekRange();
 
     // --- МОДАЛЬНОЕ ОКНО НОВОСТЕЙ ---
     const newsModal = document.getElementById('news-modal');
@@ -389,29 +390,52 @@ document.addEventListener("DOMContentLoaded", () => {
         } catch(e) { console.error(e); }
     };
 
-    // --- ЗАГРУЗКА ФАЙЛОВ (5 ШТУК) ---
+    // =========================================================================
+    // --- УЛУЧШЕННАЯ ЗАГРУЗКА ФАЙЛОВ (Ctrl+V + Drag & Drop + Click) ---
+    // =========================================================================
     const setupUpload = (zoneId, inputId, previewId) => {
         const zone = document.getElementById(zoneId);
         const input = document.getElementById(inputId);
         const preview = document.getElementById(previewId);
         let files = [];
 
-        if(!zone) return { get: () => [], clear: () => {} };
+        if(!zone || !input || !preview) return { get: () => [], clear: () => {} };
 
-        zone.addEventListener('click', (e) => { if (e.target.tagName !== 'BUTTON') input.click(); });
+        // Клик по зоне
+        zone.addEventListener('click', (e) => { 
+            if (e.target.tagName !== 'BUTTON' && !e.target.classList.contains('remove-preview')) {
+                input.click(); 
+            }
+        });
+
+        // Выбор через проводник
         input.addEventListener('change', (e) => handleFiles(e.target.files));
+
+        // Drag & Drop
         zone.addEventListener('dragover', (e) => { e.preventDefault(); zone.classList.add('dragover'); });
         zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
-        zone.addEventListener('drop', (e) => { e.preventDefault(); zone.classList.remove('dragover'); handleFiles(e.dataTransfer.files); });
-        
+        zone.addEventListener('drop', (e) => { 
+            e.preventDefault(); 
+            zone.classList.remove('dragover'); 
+            handleFiles(e.dataTransfer.files); 
+        });
+
+        // Вставка через Ctrl+V (срабатывает только если зона загрузки видима на экране)
         document.addEventListener('paste', (e) => {
-            if (!document.getElementById('staff-area').classList.contains('active') && 
-                !document.getElementById('jobs').classList.contains('active') &&
-                !document.getElementById('complaints').classList.contains('active')) return;
+            // Проверяем, видима ли зона (offsetParent === null значит скрыта)
+            if (zone.offsetParent === null) return;
+            
             const items = e.clipboardData.items;
             let pasted = [];
-            for (let item of items) if (item.type.indexOf('image') !== -1) pasted.push(item.getAsFile());
-            if(pasted.length > 0) handleFiles(pasted);
+            for (let item of items) {
+                if (item.type.indexOf('image') !== -1) {
+                    pasted.push(item.getAsFile());
+                }
+            }
+            if(pasted.length > 0) {
+                e.preventDefault(); // Чтобы не вставлялось в текстовые поля
+                handleFiles(pasted);
+            }
         });
 
         function handleFiles(newFiles) {
@@ -428,6 +452,8 @@ document.addEventListener("DOMContentLoaded", () => {
                         div.className = 'preview-item';
                         div.innerHTML = `<img src="${e.target.result}"><button type="button" class="remove-preview">✖</button>`;
                         preview.appendChild(div);
+                        
+                        // Удаление превью
                         div.querySelector('.remove-preview').onclick = (ev) => {
                             ev.stopPropagation();
                             files = files.filter(f => f !== file);
@@ -438,40 +464,14 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
             });
         }
+
         return { get: () => files, clear: () => { files = []; preview.innerHTML = ''; } };
     };
 
     const jobUpload = setupUpload('job-file-zone', 'job-file', 'job-preview-container');
     const compUpload = setupUpload('comp-file-zone', 'comp-file', 'comp-preview-container');
     const repUpload = setupUpload('rep-file-zone', 'rep-file', 'rep-preview-container');
-
-    // --- ЗАГРУЗКА ОБЛОЖКИ ДЛЯ НОВОСТЕЙ ---
-    let newsImageBase64 = null;
-    const newsFileZone = document.getElementById('news-file-zone');
-    const newsImageInput = document.getElementById('news-image');
-    const newsPreviewContainer = document.getElementById('news-preview-container');
-
-    if (newsFileZone) {
-        newsFileZone.addEventListener('click', () => newsImageInput.click());
-        newsImageInput.addEventListener('change', (e) => {
-            const file = e.target.files[0];
-            if (file && file.type.startsWith('image/')) {
-                const reader = new FileReader();
-                reader.onload = (event) => {
-                    newsImageBase64 = event.target.result;
-                    newsPreviewContainer.innerHTML = `<div class="preview-item"><img src="${newsImageBase64}"><button type="button" class="remove-preview" onclick="window.clearNewsImage(event)">✖</button></div>`;
-                };
-                reader.readAsDataURL(file);
-            }
-        });
-    }
-
-    window.clearNewsImage = (e) => {
-        e.stopPropagation();
-        newsImageBase64 = null;
-        newsImageInput.value = '';
-        newsPreviewContainer.innerHTML = '';
-    };
+    const newsUpload = setupUpload('news-file-zone', 'news-image', 'news-preview-container'); // Добавили для новостей
 
     // --- ОТПРАВКА ФОРМ ---
     const submitForm = (formId, apiUrl, getData, upload) => {
@@ -483,7 +483,7 @@ document.addEventListener("DOMContentLoaded", () => {
             if (!currentUser || !currentUser.username) return alert('Авторизуйтесь!');
             
             const files = upload.get();
-            if (files.length === 0) return alert('Прикрепите скриншоты!');
+            if (files.length === 0 && formId !== 'add-news-form') return alert('Прикрепите скриншоты!');
             if (files.length > 5) return alert('Максимум 5 скриншотов!');
 
             if (!confirm('Вы уверены, что хотите отправить эту форму?')) return;
@@ -498,6 +498,23 @@ document.addEventListener("DOMContentLoaded", () => {
                 data.week = getWeekRange();
             }
 
+            // Если это форма новостей, картинка берется как base64 (одна)
+            if (formId === 'add-news-form') {
+                if (files.length > 0) {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        data.image = e.target.result;
+                        sendData(apiUrl, data, form, upload);
+                    };
+                    reader.readAsDataURL(files[0]);
+                } else {
+                    data.image = null;
+                    sendData(apiUrl, data, form, upload);
+                }
+                return;
+            }
+
+            // Для остальных форм - массив base64
             const base64Images = [];
             let processed = 0;
             files.forEach(file => {
@@ -527,11 +544,17 @@ document.addEventListener("DOMContentLoaded", () => {
                 alert('Успешно!');
                 form.reset();
                 upload.clear();
-                document.getElementById('job-date').value = getFormattedDate();
-                document.getElementById('comp-date').value = getFormattedDate();
-                document.getElementById('rep-date').value = getFormattedDate();
-                document.getElementById('rep-week').value = getWeekRange();
+                if(document.getElementById('job-date')) document.getElementById('job-date').value = getFormattedDate();
+                if(document.getElementById('comp-date')) document.getElementById('comp-date').value = getFormattedDate();
+                if(document.getElementById('rep-date')) document.getElementById('rep-date').value = getFormattedDate();
+                if(document.getElementById('rep-week')) document.getElementById('rep-week').value = getWeekRange();
+                
                 if (url === '/api/staff/report') switchStaffSub('stats');
+                if (url === '/api/leader/news/add') {
+                    loadManageNews();
+                    // Очищаем превью новости
+                    document.getElementById('news-preview-container').innerHTML = '';
+                }
             } else {
                 alert('Ошибка: ' + (result.error || 'Неизвестная'));
             }
@@ -640,17 +663,37 @@ document.addEventListener("DOMContentLoaded", () => {
         } catch(e) { console.error(e); }
     };
 
+    // Форма добавления новостей теперь использует общий механизм submitForm
     const addNewsForm = document.getElementById('add-news-form');
     if(addNewsForm) {
+        // Переопределяем сабмит, так как логика с картинкой отличается (нужна только одна, не массив)
         addNewsForm.addEventListener('submit', async (e) => {
             e.preventDefault();
+            const files = newsUpload.get();
             const data = {
                 title: document.getElementById('news-title').value,
                 text: document.getElementById('news-text').value,
                 tag: document.getElementById('news-tag').value,
                 date: new Date().toLocaleDateString('ru-RU'),
-                image: newsImageBase64
+                image: null
             };
+            
+            if (files.length > 0) {
+                // Берем только первую картинку
+                const reader = new FileReader();
+                reader.onload = async (event) => {
+                    data.image = event.target.result;
+                    await sendNewsData(data);
+                };
+                reader.readAsDataURL(files[0]);
+            } else {
+                await sendNewsData(data);
+            }
+        });
+    }
+
+    async function sendNewsData(data) {
+        try {
             const res = await fetch('/api/leader/news/add', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -658,11 +701,15 @@ document.addEventListener("DOMContentLoaded", () => {
             });
             if (res.ok) {
                 alert('Новость опубликована!');
-                addNewsForm.reset();
-                window.clearNewsImage({ stopPropagation: () => {} });
+                document.getElementById('add-news-form').reset();
+                newsUpload.clear();
                 loadManageNews();
+            } else {
+                alert('Ошибка при публикации');
             }
-        });
+        } catch (err) {
+            alert('Ошибка сети');
+        }
     }
 
     window.deleteNews = async (id) => {
