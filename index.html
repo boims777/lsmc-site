@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Los Santos Medical Center | Официальный сайт</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;800&family=Montserrat:wght@700;800;900&display=swap" rel="stylesheet">
+    
+    <!-- Premium Animations Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/studio-freight/lenis@1.0.27/bundled/lenis.min.js"></script>
+    
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+    <header class="header">
+        <div class="container header__container">
+            <a href="#" class="logo nav__link" data-target="home">
+                <img src="img/logo.png" alt="LSMC Logo" class="logo__img">
+            </a>
+            <nav class="nav">
+                <a href="#" class="nav__link active" data-target="home">Главная</a>
+                <a href="#" class="nav__link" data-target="staff">Руководство</a>
+                <a href="#" class="nav__link" data-target="departments">Отделы</a>
+                <a href="#" class="nav__link" data-target="charter">Устав</a>
+                <a href="#" class="nav__link" data-target="fleet">Автопарк</a>
+                <a href="#" class="nav__link" data-target="jobs">Трудоустройство</a>
+                <a href="#" class="nav__link" data-target="complaints">Жалобы</a>
+            </nav>
+            
+            <div id="auth-container">
+                <a href="/auth/discord" class="btn btn--discord" id="login-btn">
+                    <img src="img/discord.png" alt="Discord" style="width: 24px; height: 24px;">
+                    Войти
+                </a>
+                
+                <div id="user-profile" style="display: none; align-items: center; gap: 12px; cursor: pointer;" title="Личный кабинет">
+                    <img id="user-avatar" src="" alt="Avatar" style="width: 40px; height: 40px; border-radius: 50%; border: 2px solid var(--accent);">
+                    <span id="user-name" style="font-weight: 600;"></span>
+                    <div id="user-balance-wrapper" style="display: none; align-items: center; gap: 5px; background: rgba(16, 185, 129, 0.1); padding: 5px 12px; border-radius: 20px; border: 1px solid rgba(16, 185, 129, 0.2);">
+                        <img src="img/coin.png" alt="Coin" style="width: 18px; height: 18px;">
+                        <span id="user-balance" style="color: var(--success); font-weight: 800;">0</span>
+                    </div>
+                    <div id="cart-icon" style="display: none; position: relative; cursor: pointer; margin-right: 10px;" title="Корзина">
+                        <span style="font-size: 24px;">🛒</span>
+                        <span id="cart-count" style="position: absolute; top: -5px; right: -10px; background: var(--accent); color: white; border-radius: 50%; padding: 2px 6px; font-size: 12px; font-weight: bold;">0</span>
+                    </div>
+                    <button id="logout-btn" class="btn btn--outline" style="padding: 8px 16px; font-size: 13px;" onclick="event.stopPropagation()">Выйти</button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <!-- 1. ГЛАВНАЯ -->
+        <section class="page-section active" id="home">
+            <div class="hero-fullscreen">
+                <img src="img/group_photo.jpg" alt="LSMC Staff" class="hero-img">
+                <div class="hero-overlay">
+                    <div class="container hero__content">
+                        <div class="reveal-text">
+                            <h1 class="hero__title"><span class="gradient-text">Медицинский Центр</span><br><span class="gradient-text-red">Лос Сантоса</span></h1>
+                        </div>
+                        <div class="reveal-text">
+                            <p class="hero__text">Учреждение экстренной и плановой медицинской помощи, обеспечивающее здоровье и безопасность населения. LSMC несет ответственность за оказание неотложной помощи, лечение критических состояний, реабилитацию пациентов.</p>
+                        </div>
+                        <div class="hero__buttons reveal-btn" style="opacity: 0; transform: translateY(20px);">
+                            <a href="#" class="btn btn--primary nav__link" data-target="jobs">Вступить в LSMC</a>
+                            <a href="#" class="btn btn--outline nav__link" data-target="departments">Наши отделы</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 2. РУКОВОДСТВО -->
+        <section class="page-section" id="staff">
+            <div class="staff-banner" style="background-image: url('img/banner_staff.jpg');">
+                <div class="staff-banner__overlay"><h2 class="staff-banner__title">Руководящий состав</h2></div>
+            </div>
+            <div class="container">
+                <h3 class="subtitle">Главный врач</h3>
+                <div class="leader-container">
+                    <div class="leader-card">
+                        <div class="leader-img-box"><img src="img/leader.png" alt="Antonio Umbrella"></div>
+                        <div class="leader-info"><span class="role-badge">Лидер фракции</span><h2>Antonio Umbrella</h2><p>Действующий Главный врач Медицинского центра ЛС, заступил на должность 4 ноября 2025 года.</p></div>
+                    </div>
+                </div>
+                <h3 class="subtitle">Заместители Главного Врача</h3>
+                <div class="staff-grid">
+                    <div class="staff-card"><div class="staff-img-box"><img src="img/zam1.png" alt="Astryx Umbrella"></div><div class="staff-info"><h4>Astryx Umbrella</h4><p>Куратор PRD</p></div></div>
+                    <div class="staff-card"><div class="staff-img-box"><img src="img/zam2.png" alt="Kezius Umbrella"></div><div class="staff-info"><h4>Kezius Umbrella</h4><p>Куратор SMPD</p></div></div>
+                    <div class="staff-card"><div class="staff-img-box"><img src="img/zam3.png" alt="Aleksander Umbrella"></div><div class="staff-info"><h4>Aleksander Umbrella</h4><p>Куратор ОК</p></div></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 3. ОТДЕЛЫ -->
+        <section class="page-section" id="departments">
+            <div class="container">
+                <h2 class="section__title">Наши отделы</h2>
+                <div class="about-grid dept-grid">
+                    <div class="about-card dept-card"><div class="dept-icon">🚑</div><h3>PRD</h3><p class="dept-fullname">Patient Rooms Dispatch</p><p>Экстренные вызовы, оказание ПМП, лечение пациентов, проведение операций, организация медицинских поставок.</p></div>
+                    <div class="about-card dept-card"><div class="dept-icon">🧠</div><h3>SMPD</h3><p class="dept-fullname">State Medical Psychiatry Department</p><p>Диагностика и реабилитация пациентов с психическими расстройствами. Контроль за медицинским обеспечением госслужащих, выдача справок.</p></div>
+                    <div class="about-card dept-card"><div class="dept-icon">📋</div><h3>ОК</h3><p class="dept-fullname">Отдел Кадров</p><p>Проведение собеседований, обучение интернов, контроль дисциплины, проведение аттестаций и выдача взысканий.</p></div>
+                </div>
+                <div class="dept-bottom-image"><img src="img/dept_photo.jpg" alt="Работа LSMC"></div>
+            </div>
+        </section>
+
+        <!-- 4. УСТАВ -->
+        <section class="page-section" id="charter">
+            <div class="container">
+                <h2 class="section__title">Устав LSMC</h2>
+                <div class="charter-container">
+                    <div class="charter-block"><h3>Глава I. Общие положения</h3><p><b>Статья 1.1.</b> Устав LSMC - свод правил, регламентирующий внутреннюю деятельность и регулирование работы сотрудников LSMC.</p><p><b>Статья 1.2.</b> Все статьи документа обязательны к исполнению.</p><p><b>Статья 1.3.</b> За нарушения статей сотрудник получает дисциплинарные взыскания согласно системе наказаний.</p><p><b>Статья 1.4.</b> Решения Главного Врача и Заместителей Главного Врача (ЗГВ) являются окончательными.</p><p><b>Статья 1.5.</b> Цель Устава - разъяснение внутренней деятельности LSMC и регулирование работы сотрудников.</p></div>
+                    <div class="charter-block"><h3>Глава II. Запреты для сотрудников</h3><p><b>Статья 2.1.</b> Запрещено оказывать первую помощь во время перестрелки.</p><p><b>Статья 2.2.</b> Запрещено употреблять наркотики или алкоголь на рабочем месте.</p><p><b>Статья 2.3.</b> Запрещены негативные высказывания о государственных структурах.</p><p><b>Статья 2.4.</b> Запрещено участвовать в коррупционных схемах.</p><p><b>Статья 2.5.</b> Запрещено использовать служебный транспорт в личных целях.</p><p><b>Статья 2.6.</b> Запрещено выезжать на вызовы на личном транспорте.</p><p><b>Статья 2.7.</b> Запрещено нарушать законодательство штата.</p><p><b>Статья 2.8.</b> Запрещено выпрашивать повышение у старшего состава.</p><p><b>Статья 2.9.</b> Запрещено ненадлежащее обращение с гос. транспортом.</p><p><b>Статья 2.10.</b> Запрещено самовольно покидать Медицинский центр без уважительной причины. <i>Исключение: Разрешение старшего состава, выезд на патруль.</i></p><p><b>Статья 2.11.</b> Запрещено выгонять жителей штата с территории больницы. <i>Исключение: Неадекватное поведение гражданина несет за собой общественную опасность.</i></p><p><b>Статья 2.12.</b> Запрещено носить/использовать оружие в рабочее время.</p><p><b>Статья 2.13.</b> Запрещено отказываться от выезда на вызов или оказания мед. услуг.</p><p><b>Статья 2.14.</b> Запрещено лечить пациентов в масках и бронежилетах, не связанных с медицинскими целями. <i>Исключение: Медицинская маска или сотрудник LSPD/BCSD/FIB/NG при исполнении.</i></p><p><b>Статья 2.15.</b> При увольнении до 7 дней работы - уплата неустойки 45.000$ Главному Врачу.</p><p><b>Статья 2.16.</b> Запрещено употребление ненормативной лексики.</p></div>
+                    <div class="charter-block"><h3>Глава III. Обязанности сотрудников</h3><p><b>Статья 3.1.</b> Соблюдать субординацию в любых условиях.</p><p><b>Статья 3.2.</b> Уважительно обращаться ко всем жителям штата на «Вы».</p><p><b>Статья 3.3.</b> Выполнять указания старшего состава.</p><p><b>Статья 3.4.</b> Оказывать помощь нуждающимся.</p><p><b>Статья 3.5.</b> Поддерживать собственное здоровье для безопасности пациентов.</p><p><b>Статья 3.6.</b> Обеспечивать правильное хранение мед. препаратов.</p><p><b>Статья 3.7.</b> Сохранять спокойствие в любых ситуациях.</p><p><b>Статья 3.8.</b> Следовать рабочему графику.</p><p><b>Статья 3.9.</b> Обеспечивать инфекционную безопасность.</p><p><b>Статья 3.10.</b> Немедленно выезжать на экстренные вызовы.</p><p><b>Статья 3.11.</b> Информировать руководство о ЧП.</p><p><b>Статья 3.12.</b> Проводить проверки в гос. организациях по указанию руководства.</p><p><b>Статья 3.13.</b> Консультировать пациентов по требованию.</p><p><b>Статья 3.14.</b> Иметь при себе рабочее удостоверение.</p><p><b>Статья 3.15.</b> Быть адекватным, ответственным и осмысленным в действиях.</p><p><b>Статья 3.16.</b> Соблюдать врачебную тайну.</p><p><b>Статья 3.17.</b> Обеспечивать сохранность гос. имущества.</p><p><b>Статья 3.18.</b> Носить средства защиты (маска, перчатки).</p><p><b>Статья 3.19.</b> Пройти стажировку (48 часов/30 заработных плат).</p><p><b>Статья 3.20.</b> Предоставлять ежедневный отчет о работе.</p><p><b>Статья 3.21.</b> Сотрудники обязаны повышать квалификацию.</p><p><b>Статья 3.22.</b> Обязаны являться на каждый объявляемый строй.</p><p><b>Статья 3.23.</b> Общие обязанности руководящего состава: еженедельные отчеты, личный пример соблюдения Устава.</p><p><b>Статья 3.24.</b> Обязанности ЗГВ: контроль и курирование всех отделов (PRD, SMPD, ОК), утверждение отчетов, решение спорных вопросов.</p><p><b>Статья 3.25.</b> Обязанности Главы и Зама PRD: оперативный контроль, патрули, мед. поставки, обучения ПМП.</p><p><b>Статья 3.26.</b> Обязанности Главы и Зама SMPD: лекции, контроль выдачи справок, курирование мед. освидетельствования.</p><p><b>Статья 3.27.</b> Обязанности Главы и Зама ОК: собеседования, экзамены, контроль интернов, выдача взысканий.</p><p><b>Статья 3.28.</b> Каждое воскресенье — обязательное общее собрание всего персонала LSMC.</p></div>
+                    <div class="charter-block"><h3>Глава IV. Рабочий график</h3><p><b>Статья 4.1.</b> Режим работы: Пн-Вс с 10:00 до 22:00. Обед с 13:00 до 14:00.</p><p><b>Статья 4.2.</b> Перерывы от 30 минут до 2 часов. Интервал между перерывами — 3 часа.</p><p><b>Статья 4.3.</b> Перед перерывом запросить разрешение у Старшего Состава.</p><p><b>Статья 4.4.</b> После перерыва отработать не менее 3-х часов.</p><p><b>Статья 4.5.</b> Старший состав может покинуть территорию до 2 часов с разрешения ЗГВ/ГВ/МЗ.</p><p><b>Статья 4.6.</b> ГВ и ЗГВ могут покидать территорию на неопределенное время.</p><p><b>Статья 4.7.</b> Запрещено посещение клубов, баров, казино и Б/У рынка в рабочее время (кроме обеда и служебных вызовов).</p><p><b>Статья 4.8.</b> График мероприятий публикуется ГВ. Дежурства PRD — по графику.</p><p><b>Статья 4.9.</b> PRD еженедельно подают заявки на дежурство. Мин. смена — 2 часа.</p><p><b>Статья 4.10.</b> Руководство PRD обязано обеспечить норму часов. Неявка = выговор.</p><p><b>Статья 4.11.</b> Дежурство не освобождает от воскресного собрания (кроме экстренной помощи).</p></div>
+                    <div class="charter-block"><h3>Глава V. Внешний Вид</h3><p><b>Статья 5.1.</b> Во время рабочего дня — только форма (кроме перерыва).</p><p><b>Статья 5.2.</b> Запрещено: неестественные цвета волос/линз, неопрятные прически, татуировки на лице/шее/кистях, спортивная/пляжная одежда, неон, аксессуары на плечах/спине/голове, спортивные очки.</p><p><b>Статья 5.3.</b> Обязателен опрятный внешний вид. Кобура разрешена, если совпадает с дресс-кодом.</p><p><b>Статья 5.7.</b> Все отделы соблюдают дресс-код, утвержденный ЗГВ и ГВ.</p></div>
+                    <div class="charter-block"><h3>Глава VI. Правила поведения в строю</h3><p><b>Статья 6.1.</b> Перед строем стоят только те, кто объявляет строй (исключение: МЗ, ГВ, ЗГВ).</p><p><b>Статья 6.2.</b> В строю запрещено: разговаривать, выкрикивать, вести себя неадекватно.</p><p><b>Статья 6.3.</b> Запрещено перебивать говорящего.</p><p><b>Статья 6.4.</b> При обращении — выйти из строя.</p><p><b>Статья 6.5.</b> Запрещено покидать строй без причины.</p><p><b>Статья 6.6.</b> Для обращения из строя — спросить разрешения.</p><p><b>Статья 6.7.</b> Для входа в строй — спросить разрешения.</p></div>
+                    <div class="charter-block"><h3>Глава VII. Устройство LSMC</h3><p><b>Статья 7.1.</b> Отделы: Интернатура, PRD, SMPD, ОК.</p><p><b>Статья 7.2.</b> Интернатура: повышение квалификации и выбор отдела. Курируется ОК.</p><p><b>Статья 7.3.</b> PRD: экстренные вызовы, ПМП, лечение, операции, мед. поставки.</p><p><b>Статья 7.4.</b> SMPD: психиатрия, контроль мед. обеспечения госслужащих, выдача справок, реестр.</p><p><b>Статья 7.5.</b> ОК: собеседования, обучение, аттестации, взыскания, кадровый учет.</p><p><b>Статья 7.6.</b> Контроль за отделами: ГВ, ЗГВ, Глава отдела.</p><p><b>Статья 7.7.</b> Полномочия ЗГВ: оперативные вопросы, представление интересов, контроль Устава.</p><p><b>Статья 7.8.</b> Глава отдела: назначается ГВ/ЗГВ, контролирует Устав, обучение, аттестации, отчеты, взыскания.</p><p><b>Статья 7.9.</b> Рядовой сотрудник: вносить предложения, получать оценку, знать о взысканиях, помогать низшим рангам.</p></div>
+                    <div class="charter-block"><h3>Глава VIII. Иерархия сотрудников</h3><p><b>Руководство:</b> Главный Врач, Зам Главного Врача.</p><p><b>High Staff:</b> Заведующий отделом.</p><p><b>PRD/SMPD/ОК:</b> Сотрудник ОК, Стажёр ОК, Хирург, Кардиолог, Психотерапевт, Окулист, Инфекционист, Терапевт, Парамедик.</p><p><b>Интернатура:</b> Врач-Интерн, Санитар, Стажёр.</p></div>
+                    <div class="charter-block"><h3>Глава IX. Система наказаний</h3><p><b>Статья 9.1.</b> Виды: Штраф (незначительные), Выговор (письменное), Строгий выговор (серьезные).</p><p><b>Статья 9.2.</b> 2 штрафа = 1 выговор.</p><p><b>Статья 9.3.</b> 2 выговора = 1 строгий выговор.</p><p><b>Статья 9.4.</b> 3 строгих выговора = увольнение.</p><p><b>Статья 9.5.</b> Снятие выговоров через отработку.</p><p><b>Статья 9.6.</b> Наказания выдаются строго по иерархии.</p><p><b>Статья 9.7.</b> Снять выговор могут: ГВ, ЗГВ, Заведующий отделом.</p><p><b>Статья 9.8.</b> Грубые нарушения — занесение в ЧС фракции.</p><p><b>Статья 9.9.</b> Наказание можно обжаловать у вышестоящего руководства.</p></div>
+                    <div class="charter-block"><h3>Глава X. Система поощрений</h3><p><b>Статья 10.1.</b> Виды: Премия за активность, Повышение в должности.</p><p><b>Статья 10.2.</b> Назначаются ГВ, ЗГВ или Куратором Отдела на основе отчетов и наблюдений.</p><p><b>Статья 10.3.</b> Критерии: стабильная работа, активность, инициативность, положительные отзывы, успешное наставничество.</p></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 5. АВТОПАРК -->
+        <section class="page-section" id="fleet">
+            <div class="container">
+                <h2 class="section__title">Автопарк и территория</h2>
+                <div class="parking-scheme">
+                    <div class="parking-info"><h3>Схема парковки LSMC</h3><p>Парковка для служебного транспорта. Места для скорых обозначены красным цветом. Въезд и выезд строго по разметке.</p></div>
+                    <div class="parking-img-wrapper"><img src="img/parking.png" alt="Схема парковки" class="parking-img"></div>
+                </div>
+                <h3 class="subtitle">Служебный транспорт</h3>
+                <div class="fleet-grid">
+                    <div class="fleet-card"><div class="fleet-card__img-wrapper"><img src="img/car_cover.png" class="fleet-card__img"></div><div class="fleet-card__info"><h3>Run Cover SVR Police</h3><p><b>Кол-во:</b> 1 шт.<br><b>Макс. скорость:</b> 385 км/ч<br><b>Багажник:</b> 120 кг</p></div></div>
+                    <div class="fleet-card"><div class="fleet-card__img-wrapper"><img src="img/car_ambulance.png" class="fleet-card__img"></div><div class="fleet-card__info"><h3>Mers Runner Ambulance</h3><p><b>Кол-во:</b> 15 шт.<br><b>Макс. скорость:</b> 300 км/ч<br><b>Багажник:</b> 2000 кг</p></div></div>
+                    <div class="fleet-card"><div class="fleet-card__img-wrapper"><img src="img/car_runner.png" class="fleet-card__img"></div><div class="fleet-card__info"><h3>Mers Runner</h3><p><b>Кол-во:</b> 1 шт.<br><b>Макс. скорость:</b> 300 км/ч<br><b>Багажник:</b> Нет</p></div></div>
+                    <div class="fleet-card"><div class="fleet-card__img-wrapper"><img src="img/car_v250.png" class="fleet-card__img"></div><div class="fleet-card__info"><h3>Mers v250 W447 Police</h3><p><b>Кол-во:</b> 1 шт.<br><b>Макс. скорость:</b> 410 км/ч<br><b>Багажник:</b> 1000 кг</p></div></div>
+                    <div class="fleet-card"><div class="fleet-card__img-wrapper"><img src="img/car_g63.png" class="fleet-card__img"></div><div class="fleet-card__info"><h3>Mers G63 4x4 W464 police</h3><p><b>Кол-во:</b> 1 шт.<br><b>Макс. скорость:</b> 300 км/ч<br><b>Багажник:</b> 200 кг</p></div></div>
+                    <div class="fleet-card"><div class="fleet-card__img-wrapper"><img src="img/car_cruzer.png" class="fleet-card__img"></div><div class="fleet-card__info"><h3>Toeda Land Cruzer 300 Police</h3><p><b>Кол-во:</b> 1 шт.<br><b>Макс. скорость:</b> 350 км/ч<br><b>Багажник:</b> 200 кг</p></div></div>
+                    <div class="fleet-card"><div class="fleet-card__img-wrapper"><img src="img/car_maverick.png" class="fleet-card__img"></div><div class="fleet-card__info"><h3>Maverick</h3><p><b>Кол-во:</b> 2 шт.<br><b>Макс. скорость:</b> 400 км/ч<br><b>Багажник:</b> 100 кг</p></div></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 6. ТРУДОУСТРОЙСТВО -->
+        <section class="page-section" id="jobs">
+            <div class="container">
+                <h2 class="section__title">Трудоустройство</h2>
+                <div class="form-container">
+                    <form id="job-form">
+                        <div class="form-group"><label>Имя и Фамилия (IC)</label><input type="text" id="name" placeholder="Пример: Antonio Umbrella" required></div>
+                        <div class="form-group"><label>Discord</label><input type="text" id="discord" placeholder="Пример: 4opi" required></div>
+                        <div class="form-group"><label>CID персонажа</label><input type="text" id="static" placeholder="Пример: D2LA" required></div>
+                        <div class="form-group"><label>Почему вы хотите вступить?</label><textarea id="about" rows="3" placeholder="Расскажите о себе..." required></textarea></div>
+                        <div class="form-group"><label>Скриншоты (Ctrl+V или перетащите файлы)</label><div class="file-upload-zone" id="job-file-zone"><p>Нажмите или перетащите сюда</p><input type="file" id="job-file" accept="image/*" multiple style="display: none;"><div class="preview-container" id="job-preview-container"></div></div></div>
+                        <div class="form-group"><label>Дата отправки</label><input type="text" id="job-date" readonly style="background: rgba(0,0,0,0.4); color: var(--text-muted);"></div>
+                        <button type="submit" class="btn btn--primary" style="width: 100%;">Отправить</button>
+                    </form>
+                </div>
+            </div>
+        </section>
+
+        <!-- 7. ЖАЛОБЫ -->
+        <section class="page-section" id="complaints">
+            <div class="container">
+                <h2 class="section__title">Жалобы</h2>
+                <div class="form-container">
+                    <form id="complaint-form">
+                        <div class="form-group"><label>Имя Фамилия (IC)</label><input type="text" id="comp-name" placeholder="Пример: Antonio Umbrella" required></div>
+                        <div class="form-group"><label>Имя Фамилия | CID</label><input type="text" id="comp-target" placeholder="Пример: Astryx Umbrella | D2LA" required></div>
+                        <div class="form-group"><label>Суть жалобы</label><textarea id="comp-reason" rows="4" placeholder="Опишите ситуацию..." required></textarea></div>
+                        <div class="form-group"><label>Скриншоты (Ctrl+V или перетащите файлы)</label><div class="file-upload-zone" id="comp-file-zone"><p>Нажмите или перетащите сюда</p><input type="file" id="comp-file" accept="image/*" multiple style="display: none;"><div class="preview-container" id="comp-preview-container"></div></div></div>
+                        <div class="form-group"><label>Дата отправки</label><input type="text" id="comp-date" readonly style="background: rgba(0,0,0,0.4); color: var(--text-muted);"></div>
+                        <button type="submit" class="btn btn--primary" style="width: 100%;">Отправить</button>
+                    </form>
+                </div>
+            </div>
+        </section>
+
+        <!-- 8. ЗОНА СОТРУДНИКОВ -->
+        <section class="page-section" id="staff-area">
+            <div class="staff-layout">
+                <aside class="staff-sidebar">
+                    <h3>Меню</h3>
+                    <a href="#" class="staff-menu-link" data-sub="leaderboard">Доска почета</a>
+                    <a href="#" class="staff-menu-link active" data-sub="stats">Статистика</a>
+                    <a href="#" class="staff-menu-link" data-sub="cabinet">Сдать отчет</a>
+                    <a href="#" class="staff-menu-link" data-sub="my-reports">Мои отчеты</a>
+                    <a href="#" class="staff-menu-link" data-sub="my-orders">Мои заказы</a>
+                    <a href="#" class="staff-menu-link" data-sub="shop">Магазин</a>
+                    <a href="#" class="staff-menu-link" data-sub="reviews" id="menu-reviews" style="display: none;">Проверка отчетов</a>
+                    <a href="#" class="staff-menu-link" data-sub="manage-shop" id="menu-manage-shop" style="display: none;">Управление магазином</a>
+                    <a href="#" class="staff-menu-link" data-sub="orders" id="menu-orders" style="display: none;">Заказы (Лидер)</a>
+                    
+                    <button id="staff-logout-btn" class="btn btn--outline" style="width: 100%; margin-top: 30px;">Выйти</button>
+                </aside>
+
+                <div class="staff-content">
+                    <!-- Вкладка: Доска почета -->
+                    <div class="staff-sub-section" id="sub-leaderboard">
+                        <h2 class="staff-title">Доска почета</h2>
+                        <p style="color: var(--text-muted); margin-bottom: 20px;">Топ-3 сотрудников по количеству одобренных отчетов за текущую неделю.</p>
+                        <div id="leaderboard-list" class="podium-container"></div>
+                    </div>
+
+                    <!-- Вкладка: Статистика -->
+                    <div class="staff-sub-section active" id="sub-stats">
+                        <h2 class="staff-title">Ваша статистика</h2>
+                        <div class="stats-grid">
+                            <div class="stat-card"><span class="stat-label">Баланс</span><strong class="stat-value" id="stat-balance">0 LSMC</strong></div>
+                            <div class="stat-card"><span class="stat-label">Всего заработано</span><strong class="stat-value" id="stat-earned">0 LSMC</strong></div>
+                            <div class="stat-card"><span class="stat-label">Отправлено отчетов</span><strong class="stat-value" id="stat-total">0</strong></div>
+                            <div class="stat-card"><span class="stat-label">Одобрено</span><strong class="stat-value" id="stat-approved">0</strong></div>
+                        </div>
+                    </div>
+
+                    <!-- Вкладка: Сдать отчет -->
+                    <div class="staff-sub-section" id="sub-cabinet">
+                        <h2 class="staff-title">Сдать отчет</h2>
+                        <div class="form-container" style="margin: 0; border: none; background: transparent;">
+                            <form id="report-form">
+                                <div class="form-group"><label>Тип отчета</label><select id="rep-type"><option value="Патруль">Патруль</option><option value="Поставка">Поставка</option><option value="Лечение">Лечение</option><option value="Лекция">Лекция</option></select></div>
+                                <div class="form-group"><label>Текст отчета</label><textarea id="rep-text" rows="4" placeholder="Опишите проделанную работу..." required></textarea></div>
+                                <div class="form-group"><label>Скриншоты (Ctrl+V или перетащите файлы)</label><div class="file-upload-zone" id="rep-file-zone"><p>Нажмите или перетащите сюда</p><input type="file" id="rep-file" accept="image/*" multiple style="display: none;"><div class="preview-container" id="rep-preview-container"></div></div></div>
+                                <div class="form-group"><label>Дата отправки</label><input type="text" id="rep-date" readonly style="background: rgba(0,0,0,0.4); color: var(--text-muted);"></div>
+                                <div class="form-group"><label>Неделя</label><input type="text" id="rep-week" readonly style="background: rgba(0,0,0,0.4); color: var(--text-muted);"></div>
+                                <button type="submit" class="btn btn--primary" style="width: 100%;">Отправить на проверку</button>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- Вкладка: Мои отчеты -->
+                    <div class="staff-sub-section" id="sub-my-reports">
+                        <h2 class="staff-title">Мои отчеты</h2>
+                        <p style="color: var(--text-muted); margin-bottom: 20px;">История ваших сданных отчетов и их статусы. Нажмите на отчет, чтобы посмотреть скриншоты.</p>
+                        <div id="my-reports-list"></div>
+                    </div>
+
+                    <!-- Вкладка: Мои заказы -->
+                    <div class="staff-sub-section" id="sub-my-orders">
+                        <h2 class="staff-title">Мои заказы</h2>
+                        <p style="color: var(--text-muted); margin-bottom: 20px;">История ваших покупок в магазине наград.</p>
+                        <div id="my-orders-list"></div>
+                    </div>
+
+                    <!-- Вкладка: Магазин -->
+                    <div class="staff-sub-section" id="sub-shop">
+                        <h2 class="staff-title">Магазин наград</h2>
+                        <div class="shop-grid" id="shop-items-container"></div>
+                    </div>
+
+                    <!-- Вкладка: Проверка отчетов -->
+                    <div class="staff-sub-section" id="sub-reviews">
+                        <h2 class="staff-title">Проверка отчетов</h2>
+                        <div id="pending-reports-list"></div>
+                    </div>
+
+                    <!-- Вкладка: Управление магазином -->
+                    <div class="staff-sub-section" id="sub-manage-shop">
+                        <h2 class="staff-title">Управление магазином</h2>
+                        <div class="form-container" style="margin-bottom: 30px; max-width: 100%; background: rgba(0,0,0,0.2);">
+                            <h3>Добавить товар</h3>
+                            <form id="add-shop-item-form" style="display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end;">
+                                <div class="form-group" style="flex: 1; min-width: 150px; margin-bottom: 0;"><label>Название</label><input type="text" id="new-item-name" required></div>
+                                <div class="form-group" style="flex: 0 0 100px; margin-bottom: 0;"><label>Цена</label><input type="number" id="new-item-price" required></div>
+                                <div class="form-group" style="flex: 1; min-width: 150px; margin-bottom: 0;"><label>Описание</label><input type="text" id="new-item-desc" required></div>
+                                <div class="form-group" style="flex: 0 0 80px; margin-bottom: 0;"><label>Иконка</label><input type="text" id="new-item-icon" placeholder="🎁" value="🎁"></div>
+                                <button type="submit" class="btn btn--success" style="height: 48px;">Добавить</button>
+                            </form>
+                        </div>
+                        <div id="manage-shop-list"></div>
+                    </div>
+
+                    <!-- Вкладка: Заказы (для лидера) -->
+                    <div class="staff-sub-section" id="sub-orders">
+                        <h2 class="staff-title">Заказы на выдачу</h2>
+                        <div id="orders-list"></div>
+                    </div>
+
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <footer class="footer">
+        <div class="container footer__container">
+            <p style="font-weight: 700; color: var(--text-main); font-size: 15px; margin-bottom: 5px;">Под редакцией Antonio Umbrella | Famq Umbrella</p>
+            <p>© 2026 Los Santos Medical Center. Государственная структура сервера Radmir.</p>
+            <p>Сайт не является официальным ресурсом Rockstar Games, также сервера RADMIR.</p>
+        </div>
+    </footer>
+
+    <!-- МОДАЛЬНОЕ ОКНО КОРЗИНЫ -->
+    <div id="cart-modal" class="cart-modal" style="display: none;">
+        <div class="cart-modal-content">
+            <span class="close-modal">&times;</span>
+            <h2>Ваша корзина</h2>
+            <div id="cart-items-list"></div>
+            <div class="cart-total">Итого: <span id="cart-total-price">0</span> LSMC</div>
+            <button id="checkout-btn" class="btn btn--success" style="width: 100%; margin-top: 20px;">Оформить заказ</button>
+        </div>
+    </div>
+
+    <!-- МОДАЛЬНОЕ ОКНО ДЛЯ ПРОСМОТРА СКРИНШОТОВ -->
+    <div id="screenshot-modal" class="cart-modal" style="display: none;">
+        <div class="cart-modal-content" style="max-width: 800px;">
+            <span class="close-screenshot-modal" style="position: absolute; top: 15px; right: 20px; font-size: 28px; cursor: pointer; color: var(--text-muted);">&times;</span>
+            <h2 id="screenshot-modal-title" style="margin-bottom: 20px;">Скриншоты отчета</h2>
+            <div id="screenshot-container" style="display: flex; flex-direction: column; gap: 15px;"></div>
+        </div>
+    </div>
+
+    <script src="js/animations.js"></script>
+    <script src="js/script.js"></script>
+</body>
+</html>
