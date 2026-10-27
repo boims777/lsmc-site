@@ -481,25 +481,72 @@ app.post('/api/leader/news/remove', (req, res) => {
 
 // --- БАЗА ДАННЫХ СОТРУДНИКОВ (ДЛЯ ЛИДЕРА) ---
 
-// Получить список всех пользователей
-app.get('/api/leader/users', (req, res) => {
+// Получить список всех пользователей С РОЛЬЮ (через Discord API)
+app.get('/api/leader/users', async (req, res) => {
     if (!req.session.user || !req.session.user.isLeader) return res.status(403).json({ error: 'Доступ запрещен' });
     const db = getDB();
-    
-    const users = Object.keys(db.users).map(id => {
-        const u = db.users[id];
+    let discordMembers = [];
+
+    try {
+        // Запрашиваем участников сервера у Discord (максимум 1000 за раз)
+        const response = await axios.get(`https://discord.com/api/guilds/${GUILD_ID}/members?limit=1000`, {
+            headers: { Authorization: `Bot ${BOT_TOKEN}` }
+        });
+        
+        // Фильтруем: оставляем только тех, у кого есть роль сотрудника (или выше)
+        discordMembers = response.data.filter(member => {
+            if (member.user.bot) return false; // Пропускаем ботов
+            const roles = member.roles;
+            return roles.includes(STAFF_ROLE_ID) || 
+                   roles.includes(HIGH_STAFF_ROLE_ID) || 
+                   roles.includes(DEPUTY_ROLE_ID) || 
+                   roles.includes(LEADER_ROLE_ID);
+        });
+
+    } catch (error) {
+        console.error("[DISCORD API] Ошибка получения участников:", error.message);
+        // Если Discord API недоступен, возвращаем хотя бы тех, кто есть в БД
+        discordMembers = Object.keys(db.users).map(id => ({
+            user: { id: id },
+            nick: db.users[id].username,
+            avatar: db.users[id].avatar
+        }));
+    }
+
+    // Формируем итоговый список, объединяя данные из Discord и из БД
+    const users = discordMembers.map(member => {
+        const userId = member.user.id;
+        
+        // Если пользователь есть в БД, берем его данные, иначе ставим нули
+        const dbUser = db.users[userId] || { 
+            balance: 0, 
+            totalEarned: 0, 
+            inventory: [], 
+            warnings: 0 
+        };
+
+        // Ник на сервере (или глобальный, если ника нет)
+        const displayName = member.nick || member.user.username || 'Неизвестный';
+        
+        // Аватар
+        const avatarHash = member.user.avatar || dbUser.avatar;
+        const avatarUrl = avatarHash ? avatarHash : null;
+
         return {
-            id: id,
-            username: u.username || 'Неизвестный',
-            avatar: u.avatar || null,
-            balance: u.balance || 0,
-            totalEarned: u.totalEarned || 0,
-            inventory: u.inventory || [],
-            warnings: u.warnings || 0
+            id: userId,
+            username: displayName,
+            avatar: avatarUrl,
+            balance: dbUser.balance || 0,
+            totalEarned: dbUser.totalEarned || 0,
+            inventory: dbUser.inventory || [],
+            warnings: dbUser.warnings || 0,
+            isInDb: !!db.users[userId] // Полезный флаг (опционально)
         };
     });
-    
+
+    // Сортируем по балансу
     users.sort((a, b) => b.balance - a.balance);
+    
     res.json(users);
 });
 
