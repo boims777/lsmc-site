@@ -23,12 +23,14 @@ const DEPUTY_ROLE_ID = '1564180732597895188';     // Зам лидера
 const LEADER_ROLE_ID = '1564180867079864460';     // Лидер
 
 // =========================================================
-// ⚠️ ВЕБХУКИ (Замени ссылки на свои из Discord)
+// ⚠️ ТВОЙ РАБОЧИЙ ВЕБХУК (Вставлен во все формы)
 // =========================================================
-const WEBHOOK_JOBS = 'https://discord.com/api/webhooks/1564567094014644286/NBhBVB7jhgwDH7pCLUyGjT3I3q2PmLsA3DZccgjAHBSHsdEgOU_ZZVmRy5rApbavKwQs';
-const WEBHOOK_COMPLAINTS = 'https://discord.com/api/webhooks/1564167409445634129/eVP7mymw50LoMNKOfLWPic-ZXOghD-vMD_MJ2SuI0XOEXUhLjznhz5cjy1r9kS7hRSz0';
-const WEBHOOK_ORDERS = 'https://discord.com/api/webhooks/1564167409445634129/eVP7mymw50LoMNKOfLWPic-ZXOghD-vMD_MJ2SuI0XOEXUhLjznhz5cjy1r9kS7hRSz0'; 
-const WEBHOOK_REPORTS_APPROVED = 'https://discord.com/api/webhooks/1564167409445634129/eVP7mymw50LoMNKOfLWPic-ZXOghD-vMD_MJ2SuI0XOEXUhLjznhz5cjy1r9kS7hRSz0';
+const WORKING_WEBHOOK = 'https://discord.com/api/webhooks/1564567094014644286/NBhBVB7jhgwDH7pCLUyGjT3I3q2PmLsA3DZccgjAHBSHsdEgOU_ZZVmRy5rApbavKwQs';
+
+const WEBHOOK_JOBS = WORKING_WEBHOOK;
+const WEBHOOK_COMPLAINTS = WORKING_WEBHOOK;
+const WEBHOOK_ORDERS = WORKING_WEBHOOK; 
+const WEBHOOK_REPORTS_APPROVED = WORKING_WEBHOOK;
 // =========================================================
 
 // --- БАЗА ДАННЫХ ---
