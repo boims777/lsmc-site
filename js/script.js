@@ -989,10 +989,19 @@ document.addEventListener("DOMContentLoaded", () => {
         try {
             tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:var(--text-muted);">Загрузка...</td></tr>';
             const res = await fetch('/api/leader/users');
+            
+            if (!res.ok) {
+                const errorData = await res.json();
+                throw new Error(errorData.error || 'Ошибка сервера');
+            }
+
             allUsers = await res.json();
             renderDbTable(allUsers);
         } catch (e) {
-            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:red;">Ошибка загрузки</td></tr>';
+            console.error(e);
+            tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:red; padding: 20px;">
+                <b>Ошибка загрузки:</b><br>${e.message}
+            </td></tr>`;
         }
     };
 

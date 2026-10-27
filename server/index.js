@@ -1,1129 +1,584 @@
-document.addEventListener("DOMContentLoaded", () => {
-    const navLinks = document.querySelectorAll(".nav__link");
-    const sections = document.querySelectorAll(".page-section");
+const express = require('express');
+const session = require('express-session');
+const axios = require('axios');
+const path = require('path');
+const fs = require('fs');
+const FormData = require('form-data');
 
-    let currentUser = null;
-    let cart = [];
-    let shopItems = [];
+const app = express();
+const PORT = process.env.PORT || 3000;
 
-    // --- ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ДЛЯ ДАТ ---
-    const getFormattedDate = () => {
-        const d = new Date();
-        return d.toLocaleDateString('ru-RU') + ' ' + d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
-    };
+// --- НАСТРОЙКИ DISCORD ---
+const CLIENT_ID = '1563879760843505664'; 
+const CLIENT_SECRET = '7HxG9VQHJFptlnU5OTY17XFKscAY6Zhz'; 
+const REDIRECT_URI = 'https://lsmc-site.onrender.com/auth/discord/callback';
+const GUILD_ID = '1176546172240928808'; 
 
-    const getWeekRange = () => {
-        const now = new Date();
-        const dayOfWeek = now.getDay();
-        const diffToMonday = (dayOfWeek === 0 ? -6 : 1 - dayOfWeek);
-        const monday = new Date(now);
-        monday.setDate(now.getDate() + diffToMonday);
-        const sunday = new Date(monday);
-        sunday.setDate(monday.getDate() + 6);
+const BOT_TOKEN = process.env.BOT_TOKEN; 
 
-        const format = (d) => {
-            const day = String(d.getDate()).padStart(2, '0');
-            const month = String(d.getMonth() + 1).padStart(2, '0');
-            const year = d.getFullYear();
-            return `${day}.${month}.${year}`;
+// --- ID РОЛЕЙ ---
+const STAFF_ROLE_ID = '1474051546361762024';      // Сотрудник
+const HIGH_STAFF_ROLE_ID = '1564177985060212766'; // Старший состав
+const DEPUTY_ROLE_ID = '1564180732597895188';     // Зам лидера
+const LEADER_ROLE_ID = '1564180867079864460';     // Лидер
+
+// =========================================================
+// ⚠️ ВЕБХУКИ (Замени ссылки на свои из Discord)
+// =========================================================
+const WEBHOOK_JOBS = 'https://discord.com/api/webhooks/1564567094014644286/NBhBVB7jhgwDH7pCLUyGjT3I3q2PmLsA3DZccgjAHBSHsdEgOU_ZZVmRy5rApbavKwQs';
+const WEBHOOK_COMPLAINTS = 'https://discord.com/api/webhooks/1564167409445634129/eVP7mymw50LoMNKOfLWPic-ZXOghD-vMD_MJ2SuI0XOEXUhLjznhz5cjy1r9kS7hRSz0';
+const WEBHOOK_ORDERS = 'https://discord.com/api/webhooks/1564167409445634129/eVP7mymw50LoMNKOfLWPic-ZXOghD-vMD_MJ2SuI0XOEXUhLjznhz5cjy1r9kS7hRSz0'; 
+const WEBHOOK_REPORTS_APPROVED = 'https://discord.com/api/webhooks/1564167409445634129/eVP7mymw50LoMNKOfLWPic-ZXOghD-vMD_MJ2SuI0XOEXUhLjznhz5cjy1r9kS7hRSz0';
+// =========================================================
+
+// --- БАЗА ДАННЫХ ---
+const DB_FILE = path.join(__dirname, 'db.json');
+if (!fs.existsSync(DB_FILE)) {
+    fs.writeFileSync(DB_FILE, JSON.stringify({ 
+        users: {}, 
+        reports: [],
+        orders: [],
+        news: [],
+        shop: [
+            { id: 'cash_10k', icon: '💵', name: '10.000$ наличными', price: 500, desc: 'Обмен валюты на игровые деньги' },
+            { id: 'med_kit', icon: '💊', name: 'Аптечка', price: 300, desc: 'Пополнение запасов' },
+            { id: 'car_ambulance', icon: '🚑', name: 'Ключи от скорой', price: 2000, desc: 'Личный транспорт для работы' }
+        ]
+    }, null, 2));
+}
+const getDB = () => JSON.parse(fs.readFileSync(DB_FILE, 'utf8'));
+const saveDB = (data) => fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2));
+
+app.use(express.static(path.join(__dirname, '../'))); 
+app.use(express.json({ limit: '50mb' }));
+app.use(session({
+    secret: 'lsmc-super-secret-key-12345',
+    resave: false,
+    saveUninitialized: false,
+    cookie: { secure: false, sameSite: 'lax' }
+}));
+
+// --- ФУНКЦИЯ ДЛЯ ПОЛУЧЕНИЯ НАЧАЛА НЕДЕЛИ ---
+const getStartOfWeek = (date) => {
+    const d = new Date(date);
+    const day = d.getDay();
+    const diff = d.getDate() - day + (day === 0 ? -6 : 1); 
+    return new Date(d.setDate(diff)).setHours(0,0,0,0);
+};
+
+// --- АВТОРИЗАЦИЯ ---
+app.get('/auth/discord', (req, res) => {
+    const url = `https://discord.com/api/oauth2/authorize?client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&response_type=code&scope=identify%20guilds%20guilds.members.read`;
+    res.redirect(url);
+});
+
+app.get('/auth/discord/callback', async (req, res) => {
+    const { code } = req.query;
+    if (!code) return res.redirect('/index.html');
+
+    try {
+        const tokenResponse = await axios.post('https://discord.com/api/oauth2/token', new URLSearchParams({
+            client_id: CLIENT_ID,
+            client_secret: CLIENT_SECRET,
+            grant_type: 'authorization_code',
+            code,
+            redirect_uri: REDIRECT_URI,
+        }), { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } });
+
+        const accessToken = tokenResponse.data.access_token;
+        
+        const userResponse = await axios.get('https://discord.com/api/users/@me', {
+            headers: { Authorization: `Bearer ${accessToken}` }
+        });
+        const user = userResponse.data;
+
+        let isStaff = false, isHighStaff = false, isLeader = false;
+        let serverNickname = user.username;
+        
+        try {
+            const memberResponse = await axios.get(`https://discord.com/api/guilds/${GUILD_ID}/members/${user.id}`, {
+                headers: { Authorization: `Bot ${BOT_TOKEN}` }
+            });
+            const member = memberResponse.data;
+            const roles = member.roles;
+            
+            if (member.nick) serverNickname = member.nick;
+
+            if (roles.includes(STAFF_ROLE_ID)) isStaff = true;
+            if (roles.includes(HIGH_STAFF_ROLE_ID)) isHighStaff = true;
+            if (roles.includes(DEPUTY_ROLE_ID)) isLeader = true;
+            if (roles.includes(LEADER_ROLE_ID)) isLeader = true;
+            
+            if (isLeader) isHighStaff = true;
+            if (isHighStaff) isStaff = true;
+
+        } catch (e) { 
+            console.error("Ошибка получения участника:", e.message);
+        }
+
+        req.session.user = { 
+            id: user.id, 
+            username: serverNickname, 
+            avatar: user.avatar, 
+            isStaff, isHighStaff, isLeader 
         };
-        return `${format(monday)} - ${format(sunday)}`;
+        
+        const db = getDB();
+        if (!db.users[user.id]) {
+            db.users[user.id] = { balance: 0, inventory: [], totalEarned: 0, avatar: user.avatar, username: serverNickname, warnings: 0 };
+            saveDB(db);
+        } else {
+            db.users[user.id].avatar = user.avatar;
+            db.users[user.id].username = serverNickname;
+            if (db.users[user.id].warnings === undefined) db.users[user.id].warnings = 0;
+            saveDB(db);
+        }
+
+        res.redirect('/index.html'); 
+    } catch (error) {
+        console.error("Ошибка OAuth2:", error.message);
+        res.redirect('/index.html');
+    }
+});
+
+app.get('/api/me', (req, res) => {
+    if (req.session.user) {
+        const db = getDB();
+        const userDb = db.users[req.session.user.id] || { balance: 0, inventory: [], totalEarned: 0, avatar: '', warnings: 0 };
+        res.json({ ...req.session.user, ...userDb });
+    } else {
+        res.json({ isStaff: false, isHighStaff: false, isLeader: false, username: null });
+    }
+});
+
+app.get('/api/logout', (req, res) => {
+    req.session.destroy();
+    res.json({ success: true });
+});
+
+// --- ОТПРАВКА В DISCORD ---
+const sendToDiscord = async (webhookUrl, payload, imagesBase64) => {
+    try {
+        if (imagesBase64 && imagesBase64.length > 0) {
+            const form = new FormData();
+            form.append('payload_json', JSON.stringify(payload));
+            imagesBase64.forEach((img, index) => {
+                const base64Data = img.replace(/^data:image\/\w+;base64,/, "");
+                const buffer = Buffer.from(base64Data, 'base64');
+                form.append(`file${index}`, buffer, { filename: `screenshot_${index}.png` });
+            });
+            await axios.post(webhookUrl, form, { headers: form.getHeaders() });
+            return { success: true };
+        } else {
+            await axios.post(webhookUrl, payload);
+            return { success: true };
+        }
+    } catch (error) {
+        console.error(`[Discord Webhook] ОШИБКА:`, error.message);
+        return { success: false, error: error.message };
+    }
+};
+
+// --- ОБЫЧНЫЕ ФОРМЫ ---
+app.post('/api/apply', async (req, res) => {
+    const { name, discord, static, about, images, date } = req.body;
+    const payload = {
+        username: "LSMC | Заявки",
+        embeds: [{
+            title: "📝 Новая заявка на трудоустройство",
+            color: 2250056,
+            fields: [
+                { name: "Отправитель", value: `<@${req.session.user?.id || 'Гость'}>`, inline: false },
+                { name: "Имя (IC)", value: name, inline: true },
+                { name: "Discord", value: discord, inline: true },
+                { name: "Static ID / CID", value: static, inline: true },
+                { name: "О себе", value: about, inline: false },
+                { name: "Дата отправки", value: date || 'Не указана', inline: false }
+            ],
+            timestamp: new Date().toISOString()
+        }]
     };
+    const result = await sendToDiscord(WEBHOOK_JOBS, payload, images);
+    res.json(result);
+});
 
-    if(document.getElementById('job-date')) document.getElementById('job-date').value = getFormattedDate();
-    if(document.getElementById('comp-date')) document.getElementById('comp-date').value = getFormattedDate();
-    if(document.getElementById('rep-date')) document.getElementById('rep-date').value = getFormattedDate();
-    if(document.getElementById('rep-week')) document.getElementById('rep-week').value = getWeekRange();
+app.post('/api/complaint', async (req, res) => {
+    const { compName, compTarget, compReason, images, date } = req.body;
+    const payload = {
+        username: "LSMC | Жалобы",
+        embeds: [{
+            title: "⚠️ Новая жалоба",
+            color: 16711680,
+            fields: [
+                { name: "Отправитель", value: `<@${req.session.user?.id || 'Гость'}>`, inline: false },
+                { name: "От кого (IC)", value: compName, inline: true },
+                { name: "На кого", value: compTarget, inline: true },
+                { name: "Суть жалобы", value: compReason, inline: false },
+                { name: "Дата отправки", value: date || 'Не указана', inline: false }
+            ],
+            timestamp: new Date().toISOString()
+        }]
+    };
+    const result = await sendToDiscord(WEBHOOK_COMPLAINTS, payload, images);
+    res.json(result);
+});
 
-    // --- МОДАЛЬНОЕ ОКНО НОВОСТЕЙ ---
-    const newsModal = document.getElementById('news-modal');
-    const closeNewsModal = document.querySelector('.close-news-modal');
+// --- ОТЧЕТЫ ---
+app.post('/api/staff/report', async (req, res) => {
+    if (!req.session.user || !req.session.user.isStaff) return res.status(403).json({ success: false, error: 'Доступ запрещен' });
+    const { type, text, images, date, week } = req.body;
+    const db = getDB();
+    const reportId = Date.now().toString();
     
-    window.openNews = (title, text, tag, date, imageUrl) => {
-        document.getElementById('news-modal-title').textContent = title;
-        document.getElementById('news-modal-text').innerHTML = text.replace(/\n/g, '<br>');
-        document.getElementById('news-modal-tag').textContent = tag;
-        document.getElementById('news-modal-date').textContent = date;
-        
-        const imgElement = document.getElementById('news-modal-image');
-        if (imgElement) {
-            if (imageUrl) {
-                imgElement.src = imageUrl;
-                imgElement.style.display = 'block';
-            } else {
-                imgElement.style.display = 'none';
-            }
-        }
-        
-        newsModal.style.display = 'flex';
-    };
+    db.reports.push({
+        id: reportId, 
+        userId: req.session.user.id, 
+        username: req.session.user.username,
+        avatar: req.session.user.avatar || '',
+        type, text, images,
+        status: 'pending', 
+        reason: '', 
+        date: date || new Date().toLocaleString(),
+        week: week || '',
+        timestamp: new Date().toISOString()
+    });
+    saveDB(db);
+    res.json({ success: true });
+});
 
-    if (closeNewsModal) {
-        closeNewsModal.addEventListener('click', () => newsModal.style.display = 'none');
+app.post('/api/staff/review', async (req, res) => {
+    if (!req.session.user || !req.session.user.isHighStaff) return res.status(403).json({ error: 'Доступ запрещен' });
+    const { reportId, action, amount, reason } = req.body;
+    const db = getDB();
+    const report = db.reports.find(r => r.id === reportId);
+    if (!report) return res.status(404).json({ error: 'Отчет не найден' });
+
+    if (action === 'approve') {
+        report.status = 'approved';
+        const reward = parseInt(amount) || 100;
+        if (db.users[report.userId]) {
+            db.users[report.userId].balance += reward;
+            db.users[report.userId].totalEarned = (db.users[report.userId].totalEarned || 0) + reward;
+        }
+
+        const payload = {
+            username: "LSMC | Одобренные отчеты",
+            embeds: [{
+                title: "✅ Отчет одобрен",
+                color: 3066993,
+                fields: [
+                    { name: "Сотрудник", value: `<@${report.userId}> (${report.username})`, inline: false },
+                    { name: "Тип отчета", value: report.type, inline: true },
+                    { name: "Текст", value: report.text, inline: false },
+                    { name: "Награда", value: `${reward} LSMC`, inline: true },
+                    { name: "Дата отправки", value: report.date || 'Не указана', inline: false },
+                    { name: "Неделя", value: report.week || 'Не указана', inline: false }
+                ],
+                timestamp: new Date().toISOString()
+            }]
+        };
+        await sendToDiscord(WEBHOOK_REPORTS_APPROVED, payload, report.images || []);
+
+    } else {
+        report.status = 'rejected';
+        report.reason = reason || 'Причина не указана';
     }
-    window.addEventListener('click', (e) => {
-        if (e.target === newsModal) newsModal.style.display = 'none';
-    });
+    saveDB(db);
+    res.json({ success: true });
+});
 
-    // --- МОДАЛЬНОЕ ОКНО ДЛЯ СКРИНШОТОВ ---
-    const screenshotModal = document.getElementById('screenshot-modal');
-    const screenshotContainer = document.getElementById('screenshot-container');
-    const closeScreenshotModal = document.querySelector('.close-screenshot-modal');
-    const screenshotModalTitle = document.getElementById('screenshot-modal-title');
-
-    window.openScreenshots = (reportId, titleText) => {
-        const report = window.allReportsData ? window.allReportsData.find(r => r.id === reportId) : null;
-        if (!report || !report.images || report.images.length === 0) {
-            return alert('К этому отчету нет скриншотов.');
-        }
-
-        screenshotModalTitle.textContent = titleText || 'Скриншоты отчета';
-        screenshotContainer.innerHTML = '';
-        
-        report.images.forEach((imgBase64, index) => {
-            const img = document.createElement('img');
-            img.src = imgBase64;
-            img.style.width = '100%';
-            img.style.borderRadius = '12px';
-            img.style.border = '1px solid rgba(255,255,255,0.1)';
-            img.alt = `Скриншот ${index + 1}`;
-            screenshotContainer.appendChild(img);
-        });
-
-        screenshotModal.style.display = 'flex';
-    };
-
-    if (closeScreenshotModal) {
-        closeScreenshotModal.addEventListener('click', () => {
-            screenshotModal.style.display = 'none';
-        });
-    }
-
-    window.addEventListener('click', (e) => {
-        if (e.target === screenshotModal) screenshotModal.style.display = 'none';
-    });
-
-    // --- ПЕРЕКЛЮЧЕНИЕ ВКЛАДОК ---
-    const switchTab = (targetId) => {
-        sections.forEach(section => section.classList.remove("active"));
-        const targetSection = document.getElementById(targetId);
-        if (targetSection) targetSection.classList.add("active");
-
-        navLinks.forEach(link => {
-            if (link.getAttribute("data-target") === targetId) {
-                link.classList.add("active");
-            } else {
-                link.classList.remove("active");
-            }
-        });
-        window.scrollTo(0, 0);
-        
-        if(targetId === 'staff-area') {
-            loadStats();
-            switchStaffSub('stats');
-        }
-        if(targetId === 'news') {
-            loadNews();
-        }
-    };
-
-    navLinks.forEach(link => {
-        link.addEventListener("click", (e) => {
-            e.preventDefault();
-            const targetId = link.getAttribute("data-target");
-            if (targetId) switchTab(targetId);
-        });
-    });
-
-    // --- АВТОРИЗАЦИЯ ---
-    const loginBtn = document.getElementById('login-btn');
-    const userProfile = document.getElementById('user-profile');
-    const userName = document.getElementById('user-name');
-    const userAvatar = document.getElementById('user-avatar');
-    const userBalanceWrapper = document.getElementById('user-balance-wrapper');
-    const userBalanceVal = document.getElementById('user-balance');
-    const cartIcon = document.getElementById('cart-icon');
-    const cartCount = document.getElementById('cart-count');
-    const logoutBtn = document.getElementById('logout-btn');
-
-    if(userProfile) {
-        userProfile.addEventListener('click', () => {
-            if(currentUser && currentUser.isStaff) {
-                switchTab('staff-area');
-            } else {
-                alert('У вас нет доступа к личному кабинету. Обратитесь к руководству LSMC для получения роли.');
-            }
-        });
-    }
-
-    fetch('/api/me')
-        .then(response => response.json())
-        .then(data => {
-            currentUser = data;
-            if (data.username) {
-                if(loginBtn) loginBtn.style.display = 'none';
-                if(userProfile) userProfile.style.display = 'flex';
-                if(userName) userName.textContent = data.username;
-                
-                if(data.avatar) userAvatar.src = `https://cdn.discordapp.com/avatars/${data.id}/${data.avatar}.png`;
-                else userAvatar.src = `https://cdn.discordapp.com/embed/avatars/0.png`;
-
-                if (data.isStaff) {
-                    userBalanceWrapper.style.display = 'flex';
-                    userBalanceVal.textContent = data.balance;
-                    cartIcon.style.display = 'block';
-                    
-                    if(data.isHighStaff) {
-                        document.getElementById('menu-reviews').style.display = 'block';
-                    }
-                    if(data.isLeader) {
-                        document.getElementById('menu-manage-news').style.display = 'block';
-                        document.getElementById('menu-manage-shop').style.display = 'block';
-                        document.getElementById('menu-orders').style.display = 'block';
-                        document.getElementById('menu-database').style.display = 'block';
-                    }
-                }
-            }
-        });
-
-    if(logoutBtn) {
-        logoutBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            fetch('/api/logout').then(() => window.location.reload());
-        });
-    }
-
-    // --- КОРЗИНА ---
-    const cartModal = document.getElementById('cart-modal');
-    const cartItemsList = document.getElementById('cart-items-list');
-    const cartTotalPrice = document.getElementById('cart-total-price');
-    const closeModal = document.querySelector('.close-modal');
-    const checkoutBtn = document.getElementById('checkout-btn');
-
-    cartIcon.addEventListener('click', () => {
-        renderCart();
-        cartModal.style.display = 'flex';
-    });
-
-    closeModal.addEventListener('click', () => {
-        cartModal.style.display = 'none';
-    });
-
-    window.addEventListener('click', (e) => {
-        if (e.target === cartModal) cartModal.style.display = 'none';
-    });
-
-    const updateCartCount = () => {
-        cartCount.textContent = cart.length;
-    };
-
-    const renderCart = () => {
-        cartItemsList.innerHTML = '';
-        let total = 0;
-        cart.forEach((item, index) => {
-            total += item.price;
-            const div = document.createElement('div');
-            div.className = 'cart-item-row';
-            div.innerHTML = `
-                <span class="item-name">${item.name}</span>
-                <span class="item-price">${item.price} LSMC</span>
-                <button class="remove-item" onclick="removeFromCart(${index})">✖</button>
-            `;
-            cartItemsList.appendChild(div);
-        });
-        cartTotalPrice.textContent = total;
-    };
-
-    window.removeFromCart = (index) => {
-        cart.splice(index, 1);
-        updateCartCount();
-        renderCart();
-    };
-
-    window.addToCart = (itemId) => {
-        if (!currentUser || !currentUser.isStaff) return alert('Войдите как сотрудник!');
-        const item = shopItems.find(i => i.id === itemId);
-        if (!item) return;
-        cart.push(item);
-        updateCartCount();
-        alert(`Товар "${item.name}" добавлен в корзину!`);
-        if (cartModal.style.display === 'flex') renderCart();
-    };
-
-    // --- ЗАГРУЗКА МАГАЗИНА ---
-    const loadShop = async () => {
-        const container = document.getElementById('shop-items-container');
-        try {
-            const res = await fetch('/api/staff/shop');
-            shopItems = await res.json();
-            container.innerHTML = '';
-            shopItems.forEach(item => {
-                const div = document.createElement('div');
-                div.className = 'shop-item';
-                div.innerHTML = `
-                    <span class="shop-item__icon">${item.icon}</span>
-                    <h4>${item.name}</h4>
-                    <p>${item.desc}</p>
-                    <div class="shop-item__price">${item.price} LSMC</div>
-                    <button class="btn btn--success" onclick="addToCart('${item.id}')" style="width: 100%;">В корзину</button>
-                `;
-                container.appendChild(div);
-            });
-        } catch (e) { console.error(e); }
-    };
-
-    // --- ОФОРМЛЕНИЕ ЗАКАЗА ---
-    checkoutBtn.addEventListener('click', async () => {
-        if (cart.length === 0) return alert('Корзина пуста!');
-        if (!currentUser || !currentUser.isStaff) return alert('Авторизуйтесь!');
-
-        const total = cart.reduce((sum, item) => sum + item.price, 0);
-        if (currentUser.balance < total) return alert('Недостаточно средств на балансе!');
-
-        if (!confirm(`Оформить заказ на сумму ${total} LSMC?`)) return;
-
-        try {
-            const res = await fetch('/api/staff/checkout', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ items: cart })
-            });
-            const data = await res.json();
-            if (data.success) {
-                alert('Заказ успешно оформлен! Ожидайте выдачи.');
-                cart = [];
-                updateCartCount();
-                cartModal.style.display = 'none';
-                currentUser.balance = data.newBalance;
-                userBalanceVal.textContent = data.newBalance;
-            } else {
-                alert('Ошибка: ' + (data.error || 'Неизвестная'));
-            }
-        } catch (e) {
-            alert('Ошибка сети');
-        }
-    });
-
-    // --- ПЕРЕКЛЮЧЕНИЕ ПОДРАЗДЕЛОВ СОТРУДНИКА ---
-    const staffSubSections = document.querySelectorAll(".staff-sub-section");
-    const staffMenuLinks = document.querySelectorAll(".staff-menu-link");
-
-    const switchStaffSub = (subId) => {
-        staffSubSections.forEach(sec => sec.classList.remove("active"));
-        const targetSub = document.getElementById(`sub-${subId}`);
-        if (targetSub) targetSub.classList.add("active");
-
-        staffMenuLinks.forEach(link => {
-            if (link.getAttribute("data-sub") === subId) {
-                link.classList.add("active");
-            } else {
-                link.classList.remove("active");
-            }
-        });
-
-        if (subId === 'stats') loadStats();
-        if (subId === 'shop') loadShop();
-        if (subId === 'reviews') loadPendingReports();
-        if (subId === 'manage-shop') loadManageShop();
-        if (subId === 'leaderboard') loadLeaderboard();
-        if (subId === 'orders') loadOrders();
-        if (subId === 'my-reports') loadMyReports();
-        if (subId === 'my-orders') loadMyOrders();
-        if (subId === 'manage-news') loadManageNews();
-        if (subId === 'database') loadDatabase();
-    };
-
-    staffMenuLinks.forEach(link => {
-        link.addEventListener("click", (e) => {
-            e.preventDefault();
-            const subId = link.getAttribute("data-sub");
-            if (subId) switchStaffSub(subId);
-        });
-    });
-
-    // --- СТАТИСТИКА ---
-    const loadStats = async () => {
-        try {
-            const res = await fetch('/api/staff/stats');
-            const data = await res.json();
-            
-            if (currentUser && currentUser.username) {
-                const statsUsername = document.getElementById('stats-username');
-                if (statsUsername) statsUsername.textContent = currentUser.username;
-            }
-
-            if (currentUser && currentUser.isHighStaff) {
-                const reviewBtn = document.getElementById('qa-review-btn');
-                if (reviewBtn) reviewBtn.style.display = 'flex';
-            }
-
-            const animateValue = (id, endValue, duration = 1000) => {
-                const obj = document.getElementById(id);
-                if (!obj) return;
-                let startTimestamp = null;
-                const step = (timestamp) => {
-                    if (!startTimestamp) startTimestamp = timestamp;
-                    const progress = Math.min((timestamp - startTimestamp) / duration, 1);
-                    const easeOutQuart = 1 - Math.pow(1 - progress, 4);
-                    obj.textContent = Math.floor(easeOutQuart * endValue);
-                    if (progress < 1) {
-                        window.requestAnimationFrame(step);
-                    } else {
-                        obj.textContent = endValue;
-                    }
-                };
-                window.requestAnimationFrame(step);
-            };
-
-            animateValue('stat-balance', data.balance);
-            animateValue('stat-earned', data.totalEarned);
-            animateValue('stat-total', data.totalReports);
-            animateValue('stat-approved', data.approvedReports);
-
-        } catch(e) { 
-            console.error('Ошибка загрузки статистики:', e); 
-        }
-    };
-
-    // --- ДОСКА ПОЧЕТА ---
-    const loadLeaderboard = async () => {
-        const container = document.getElementById('leaderboard-list');
-        try {
-            const res = await fetch('/api/staff/leaderboard');
-            const data = await res.json();
-            
-            container.innerHTML = '';
-            if(data.length === 0) {
-                container.innerHTML = '<p style="color:var(--text-muted); text-align:center; width:100%;">Пока нет одобренных отчетов на этой неделе.</p>';
-                return;
-            }
-
-            const places = [];
-            if(data[1]) places.push({ ...data[1], class: 'second' });
-            if(data[0]) places.push({ ...data[0], class: 'first' });
-            if(data[2]) places.push({ ...data[2], class: 'third' });
-
-            places.forEach(p => {
-                const div = document.createElement('div');
-                div.className = `podium-place ${p.class}`;
-                
-                let avatarUrl = 'https://cdn.discordapp.com/embed/avatars/0.png';
-                if (p.avatar) {
-                    avatarUrl = `https://cdn.discordapp.com/avatars/${p.userId}/${p.avatar}.png`;
-                }
-
-                div.innerHTML = `
-                    <img src="${avatarUrl}" alt="${p.username}" class="podium-avatar">
-                    <span class="podium-name">${p.username}</span>
-                    <span class="podium-score">${p.count} отчетов</span>
-                    <span class="rank-icon">${p.class === 'first' ? '🥇' : p.class === 'second' ? '🥈' : '🥉'}</span>
-                `;
-                container.appendChild(div);
-            });
-        } catch(e) { console.error(e); }
-    };
-
-    // =========================================================================
-    // --- УЛУЧШЕННАЯ ЗАГРУЗКА ФАЙЛОВ (Ctrl+V + Drag & Drop + Click) ---
-    // =========================================================================
-    const setupUpload = (zoneId, inputId, previewId) => {
-        const zone = document.getElementById(zoneId);
-        const input = document.getElementById(inputId);
-        const preview = document.getElementById(previewId);
-        let files = [];
-
-        if(!zone || !input || !preview) return { get: () => [], clear: () => {} };
-
-        zone.addEventListener('click', (e) => { 
-            if (e.target.tagName !== 'BUTTON' && !e.target.classList.contains('remove-preview')) {
-                input.click(); 
-            }
-        });
-
-        input.addEventListener('change', (e) => handleFiles(e.target.files));
-
-        zone.addEventListener('dragover', (e) => { e.preventDefault(); zone.classList.add('dragover'); });
-        zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
-        zone.addEventListener('drop', (e) => { 
-            e.preventDefault(); 
-            zone.classList.remove('dragover'); 
-            handleFiles(e.dataTransfer.files); 
-        });
-
-        document.addEventListener('paste', (e) => {
-            if (zone.offsetParent === null) return;
-            
-            const items = e.clipboardData.items;
-            let pasted = [];
-            for (let item of items) {
-                if (item.type.indexOf('image') !== -1) {
-                    pasted.push(item.getAsFile());
-                }
-            }
-            if(pasted.length > 0) {
-                e.preventDefault();
-                handleFiles(pasted);
-            }
-        });
-
-        function handleFiles(newFiles) {
-            Array.from(newFiles).forEach(file => {
-                if (file.type.startsWith('image/')) {
-                    if (files.length >= 5) {
-                        alert('Максимальное количество скриншотов — 5.');
-                        return;
-                    }
-                    files.push(file);
-                    const reader = new FileReader();
-                    reader.onload = (e) => {
-                        const div = document.createElement('div');
-                        div.className = 'preview-item';
-                        div.innerHTML = `<img src="${e.target.result}"><button type="button" class="remove-preview">✖</button>`;
-                        preview.appendChild(div);
-                        
-                        div.querySelector('.remove-preview').onclick = (ev) => {
-                            ev.stopPropagation();
-                            files = files.filter(f => f !== file);
-                            div.remove();
-                        };
+app.get('/api/staff/leaderboard', (req, res) => {
+    const db = getDB();
+    const now = new Date();
+    const startOfWeek = getStartOfWeek(now);
+    
+    const stats = {};
+    db.reports.forEach(r => {
+        if (r.status === 'approved') {
+            const reportDate = new Date(r.timestamp).getTime();
+            if (reportDate >= startOfWeek) {
+                if (!stats[r.userId]) {
+                    const currentUser = db.users[r.userId];
+                    stats[r.userId] = { 
+                        userId: r.userId,
+                        username: (currentUser && currentUser.username) ? currentUser.username : r.username, 
+                        avatar: r.avatar || (currentUser ? currentUser.avatar : ''),
+                        count: 0 
                     };
-                    reader.readAsDataURL(file);
                 }
-            });
+                stats[r.userId].count++;
+            }
         }
+    });
+    const leaderboard = Object.values(stats).sort((a, b) => b.count - a.count).slice(0, 3);
+    res.json(leaderboard);
+});
 
-        return { get: () => files, clear: () => { files = []; preview.innerHTML = ''; } };
-    };
+app.get('/api/staff/stats', (req, res) => {
+    if (!req.session.user) return res.status(403).json({ error: 'Доступ запрещен' });
+    const db = getDB();
+    const user = db.users[req.session.user.id] || { totalEarned: 0, balance: 0 };
+    const userReports = db.reports.filter(r => r.userId === req.session.user.id);
+    const approved = userReports.filter(r => r.status === 'approved').length;
+    res.json({ totalEarned: user.totalEarned || 0, totalReports: userReports.length, approvedReports: approved, balance: user.balance });
+});
 
-    const jobUpload = setupUpload('job-file-zone', 'job-file', 'job-preview-container');
-    const compUpload = setupUpload('comp-file-zone', 'comp-file', 'comp-preview-container');
-    const repUpload = setupUpload('rep-file-zone', 'rep-file', 'rep-preview-container');
-    const newsUpload = setupUpload('news-file-zone', 'news-image', 'news-preview-container');
+app.get('/api/staff/my-reports', (req, res) => {
+    if (!req.session.user) return res.status(403).json({ error: 'Доступ запрещен' });
+    const db = getDB();
+    const myReports = db.reports
+        .filter(r => r.userId === req.session.user.id)
+        .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    res.json(myReports);
+});
 
-    // --- ОТПРАВКА ФОРМ ---
-    const submitForm = (formId, apiUrl, getData, upload) => {
-        const form = document.getElementById(formId);
-        if (!form) return;
+app.get('/api/staff/my-orders', (req, res) => {
+    if (!req.session.user) return res.status(403).json({ error: 'Доступ запрещен' });
+    const db = getDB();
+    const myOrders = (db.orders || [])
+        .filter(o => o.userId === req.session.user.id)
+        .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    res.json(myOrders);
+});
 
-        form.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            if (!currentUser || !currentUser.username) return alert('Авторизуйтесь!');
-            
-            const files = upload.get();
-            if (files.length === 0 && formId !== 'add-news-form') return alert('Прикрепите скриншоты!');
-            if (files.length > 5) return alert('Максимум 5 скриншотов!');
+app.get('/api/staff/pending-reports', (req, res) => {
+    if (!req.session.user || !req.session.user.isHighStaff) return res.status(403).json({ error: 'Доступ запрещен' });
+    const db = getDB();
+    res.json(db.reports.filter(r => r.status === 'pending'));
+});
 
-            if (!confirm('Вы уверены, что хотите отправить эту форму?')) return;
+app.post('/api/staff/checkout', async (req, res) => {
+    if (!req.session.user || !req.session.user.isStaff) return res.status(403).json({ success: false, error: 'Доступ запрещен' });
+    
+    const { items } = req.body;
+    if (!items || items.length === 0) return res.status(400).json({ success: false, error: 'Корзина пуста' });
 
-            const data = getData();
-            data.discord_user = currentUser.username;
+    const db = getDB();
+    const user = db.users[req.session.user.id];
+    if (!user) return res.status(404).json({ success: false, error: 'Пользователь не найден' });
 
-            if (formId === 'job-form') data.date = getFormattedDate();
-            if (formId === 'complaint-form') data.date = getFormattedDate();
-            if (formId === 'report-form') {
-                data.date = getFormattedDate();
-                data.week = getWeekRange();
-            }
+    const totalPrice = items.reduce((sum, item) => sum + item.price, 0);
+    if (user.balance < totalPrice) return res.status(400).json({ success: false, error: 'Недостаточно средств' });
 
-            if (formId === 'add-news-form') {
-                if (files.length > 0) {
-                    const reader = new FileReader();
-                    reader.onload = (e) => {
-                        data.image = e.target.result;
-                        sendData(apiUrl, data, form, upload);
-                    };
-                    reader.readAsDataURL(files[0]);
-                } else {
-                    data.image = null;
-                    sendData(apiUrl, data, form, upload);
-                }
-                return;
-            }
+    user.balance -= totalPrice;
 
-            const base64Images = [];
-            let processed = 0;
-            files.forEach(file => {
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    base64Images.push(e.target.result);
-                    processed++;
-                    if (processed === files.length) {
-                        data.images = base64Images;
-                        sendData(apiUrl, data, form, upload);
-                    }
-                };
-                reader.readAsDataURL(file);
-            });
+    if (!db.orders) db.orders = [];
+    items.forEach(item => {
+        const orderId = Date.now().toString() + Math.random().toString(36).substr(2, 5);
+        db.orders.push({
+            id: orderId,
+            userId: req.session.user.id,
+            username: req.session.user.username,
+            itemName: item.name,
+            price: item.price,
+            status: 'pending',
+            timestamp: new Date().toISOString()
         });
-    };
-
-    const sendData = async (url, data, form, upload) => {
-        try {
-            const res = await fetch(url, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data)
-            });
-            const result = await res.json();
-            if (result.success) {
-                alert('Успешно!');
-                form.reset();
-                upload.clear();
-                if(document.getElementById('job-date')) document.getElementById('job-date').value = getFormattedDate();
-                if(document.getElementById('comp-date')) document.getElementById('comp-date').value = getFormattedDate();
-                if(document.getElementById('rep-date')) document.getElementById('rep-date').value = getFormattedDate();
-                if(document.getElementById('rep-week')) document.getElementById('rep-week').value = getWeekRange();
-                
-                if (url === '/api/staff/report') switchStaffSub('stats');
-                if (url === '/api/leader/news/add') {
-                    loadManageNews();
-                    document.getElementById('news-preview-container').innerHTML = '';
-                }
-            } else {
-                alert('Ошибка: ' + (result.error || 'Неизвестная'));
-            }
-        } catch (err) {
-            alert('Ошибка сети');
-        }
-    };
-
-    submitForm('job-form', '/api/apply', () => ({
-        name: document.getElementById('name').value,
-        discord: document.getElementById('discord').value,
-        static: document.getElementById('static').value,
-        about: document.getElementById('about').value,
-    }), jobUpload);
-
-    submitForm('complaint-form', '/api/complaint', () => ({
-        compName: document.getElementById('comp-name').value,
-        compTarget: document.getElementById('comp-target').value,
-        compReason: document.getElementById('comp-reason').value,
-    }), compUpload);
-
-    submitForm('report-form', '/api/staff/report', () => ({
-        type: document.getElementById('rep-type').value,
-        text: document.getElementById('rep-text').value,
-    }), repUpload);
-
-    // --- НОВОСТИ ---
-    const loadNews = async () => {
-        const container = document.getElementById('news-grid');
-        try {
-            const res = await fetch('/api/news');
-            let news = await res.json();
-            
-            news.sort((a, b) => b.id - a.id);
-
-            container.innerHTML = '';
-            
-            if(news.length === 0) {
-                container.innerHTML = '<p style="color:var(--text-muted); text-align:center; width:100%; padding: 40px;">Пока нет новостей.</p>';
-                return;
-            }
-            
-            news.forEach((item, index) => {
-                const div = document.createElement('div');
-                div.className = 'news-card';
-                div.onclick = () => window.openNews(item.title, item.text, item.tag, item.date, item.image);
-                
-                const imageSrc = item.image ? item.image : 'img/hospital.jpg'; 
-
-                div.innerHTML = `
-                    <div class="news-card-image">
-                        <img src="${imageSrc}" alt="Cover">
-                    </div>
-                    <div class="news-content">
-                        <span class="news-tag">${item.tag}</span>
-                        <h3 class="news-title">${item.title}</h3>
-                        <p class="news-excerpt">${item.text}</p>
-                        <div class="news-footer">
-                            <span class="news-date">${item.date}</span>
-                            <span style="color: var(--accent); font-weight: 600;">Читать →</span>
-                        </div>
-                    </div>
-                `;
-                container.appendChild(div);
-
-                if (typeof gsap !== 'undefined') {
-                    gsap.from(div, {
-                        y: 30,
-                        opacity: 0,
-                        duration: 0.6,
-                        delay: index * 0.1,
-                        ease: "power3.out"
-                    });
-                }
-            });
-        } catch(e) { 
-            console.error(e); 
-            container.innerHTML = '<p style="color:red; text-align:center;">Ошибка загрузки новостей.</p>';
-        }
-    };
-
-    // --- УПРАВЛЕНИЕ НОВОСТЯМИ (ЛИДЕР) ---
-    const loadManageNews = async () => {
-        const container = document.getElementById('manage-news-list');
-        try {
-            const res = await fetch('/api/news');
-            const news = await res.json();
-            container.innerHTML = '';
-            if(news.length === 0) {
-                container.innerHTML = '<p style="color:var(--text-muted);">Новостей пока нет.</p>';
-                return;
-            }
-            news.forEach(item => {
-                const div = document.createElement('div');
-                div.className = 'report-item';
-                div.innerHTML = `
-                    <h4>${item.title} <span style="color: var(--accent); font-size: 12px;">[${item.tag}]</span></h4>
-                    <p>${item.text.substring(0, 80)}...</p>
-                    <button class="btn btn--outline" onclick="deleteNews('${item.id}')" style="margin-top: 10px;">Удалить</button>
-                `;
-                container.appendChild(div);
-            });
-        } catch(e) { console.error(e); }
-    };
-
-    const addNewsForm = document.getElementById('add-news-form');
-    if(addNewsForm) {
-        addNewsForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const files = newsUpload.get();
-            const data = {
-                title: document.getElementById('news-title').value,
-                text: document.getElementById('news-text').value,
-                tag: document.getElementById('news-tag').value,
-                date: new Date().toLocaleDateString('ru-RU'),
-                image: null
-            };
-            
-            if (files.length > 0) {
-                const reader = new FileReader();
-                reader.onload = async (event) => {
-                    data.image = event.target.result;
-                    await sendNewsData(data);
-                };
-                reader.readAsDataURL(files[0]);
-            } else {
-                await sendNewsData(data);
-            }
-        });
-    }
-
-    async function sendNewsData(data) {
-        try {
-            const res = await fetch('/api/leader/news/add', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data)
-            });
-            if (res.ok) {
-                alert('Новость опубликована!');
-                document.getElementById('add-news-form').reset();
-                newsUpload.clear();
-                loadManageNews();
-            } else {
-                alert('Ошибка при публикации');
-            }
-        } catch (err) {
-            alert('Ошибка сети');
-        }
-    }
-
-    window.deleteNews = async (id) => {
-        if(!confirm('Удалить новость?')) return;
-        const res = await fetch('/api/leader/news/remove', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ newsId: id })
-        });
-        if (res.ok) { alert('Новость удалена'); loadManageNews(); }
-    };
-
-    // --- ПРОВЕРКА ОТЧЕТОВ (ХАЙ СТАФФ) ---
-    const loadPendingReports = async () => {
-        const container = document.getElementById('pending-reports-list');
-        try {
-            const res = await fetch('/api/staff/pending-reports');
-            const reports = await res.json();
-            window.allReportsData = reports;
-
-            if (reports.length === 0) {
-                container.innerHTML = '<p style="color:var(--text-muted); text-align:center;">Нет отчетов на проверке.</p>';
-                return;
-            }
-
-            container.innerHTML = '';
-            reports.forEach(rep => {
-                const div = document.createElement('div');
-                div.className = 'report-item';
-                div.style.cursor = 'pointer';
-                div.onclick = (e) => {
-                    if (e.target.tagName !== 'BUTTON' && e.target.tagName !== 'INPUT') {
-                        window.openScreenshots(rep.id, `Скриншоты отчета: ${rep.type}`);
-                    }
-                };
-                div.innerHTML = `
-                    <h4>${rep.type} от ${rep.username}</h4>
-                    <p>${rep.text}</p>
-                    <p style="font-size: 12px; color: var(--text-muted);">Дата: ${rep.date || 'Не указана'} | Неделя: ${rep.week || 'Не указана'}</p>
-                    <div class="report-actions">
-                        <input type="number" id="reward-${rep.id}" value="100" title="Сумма награды">
-                        <button class="btn btn--success" onclick="approveReport('${rep.id}')">Одобрить</button>
-                        <input type="text" class="reject-input" id="reason-${rep.id}" placeholder="Причина отклонения">
-                        <button class="btn btn--outline" onclick="rejectReport('${rep.id}')">Отклонить</button>
-                    </div>
-                `;
-                container.appendChild(div);
-            });
-        } catch (e) { container.innerHTML = '<p style="color:red; text-align:center;">Ошибка доступа</p>'; }
-    };
-
-    window.approveReport = async (id) => {
-        const amount = document.getElementById(`reward-${id}`).value;
-        const res = await fetch('/api/staff/review', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ reportId: id, action: 'approve', amount: amount })
-        });
-        if (res.ok) { alert('Одобрено!'); loadPendingReports(); }
-    };
-
-    window.rejectReport = async (id) => {
-        const reason = document.getElementById(`reason-${id}`).value;
-        if(!reason) return alert('Укажите причину отклонения!');
-        const res = await fetch('/api/staff/review', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ reportId: id, action: 'reject', reason: reason })
-        });
-        if (res.ok) { alert('Отклонено.'); loadPendingReports(); }
-    };
-
-    // --- УПРАВЛЕНИЕ МАГАЗИНОМ (LEADER) ---
-    const loadManageShop = async () => {
-        const container = document.getElementById('manage-shop-list');
-        try {
-            const res = await fetch('/api/staff/shop');
-            const items = await res.json();
-            container.innerHTML = '';
-            items.forEach(item => {
-                const div = document.createElement('div');
-                div.className = 'report-item';
-                div.innerHTML = `
-                    <h4>${item.icon} ${item.name} - ${item.price} LSMC</h4>
-                    <p>${item.desc}</p>
-                    <button class="btn btn--outline" onclick="deleteShopItem('${item.id}')">Удалить</button>
-                `;
-                container.appendChild(div);
-            });
-        } catch (e) { console.error(e); }
-    };
-
-    const addShopForm = document.getElementById('add-shop-item-form');
-    if(addShopForm) {
-        addShopForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const data = {
-                name: document.getElementById('new-item-name').value,
-                price: document.getElementById('new-item-price').value,
-                desc: document.getElementById('new-item-desc').value,
-                icon: document.getElementById('new-item-icon').value || '🎁'
-            };
-            const res = await fetch('/api/leader/shop/add', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data)
-            });
-            if (res.ok) {
-                alert('Товар добавлен!');
-                addShopForm.reset();
-                loadManageShop();
-            }
-        });
-    }
-
-    window.deleteShopItem = async (id) => {
-        if(!confirm('Удалить товар?')) return;
-        const res = await fetch('/api/leader/shop/remove', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ itemId: id })
-        });
-        if (res.ok) { alert('Удалено'); loadManageShop(); }
-    };
-
-    // --- ЗАКАЗЫ (ДЛЯ ЛИДЕРА) ---
-    const loadOrders = async () => {
-        const container = document.getElementById('orders-list');
-        try {
-            const res = await fetch('/api/staff/orders');
-            const orders = await res.json();
-            
-            if(orders.length === 0) {
-                container.innerHTML = '<p style="color:var(--text-muted); text-align:center;">Нет новых заказов.</p>';
-                return;
-            }
-
-            container.innerHTML = '';
-            orders.forEach(o => {
-                const div = document.createElement('div');
-                div.className = 'report-item';
-                
-                let statusText = '';
-                let statusColor = '';
-                if (o.status === 'pending') { statusText = 'Ожидает выдачи'; statusColor = 'var(--gold)'; }
-                else if (o.status === 'issued') { statusText = 'Выдано'; statusColor = 'var(--success)'; }
-                else if (o.status === 'rejected') { statusText = 'Отклонено'; statusColor = 'var(--accent)'; }
-
-                div.innerHTML = `
-                    <h4>${o.itemName} от ${o.username} <span style="color: ${statusColor}; font-size: 14px; margin-left: 10px;">[${statusText}]</span></h4>
-                    <p>Стоимость: ${o.price} LSMC</p>
-                    ${o.reason ? `<p style="color: var(--accent); font-size: 14px;"><b>Причина:</b> ${o.reason}</p>` : ''}
-                    <div class="report-actions">
-                        ${o.status === 'pending' ? `
-                            <button class="btn btn--success" onclick="issueOrder('${o.id}', 'issued')">Выдать</button>
-                            <input type="text" class="reject-input" id="reason-order-${o.id}" placeholder="Причина отклонения">
-                            <button class="btn btn--outline" onclick="issueOrder('${o.id}', 'rejected')">Отклонить</button>
-                        ` : ''}
-                    </div>
-                `;
-                container.appendChild(div);
-            });
-        } catch (e) { console.error(e); }
-    };
-
-    window.issueOrder = async (id, action) => {
-        const reasonInput = document.getElementById(`reason-order-${id}`);
-        const reason = reasonInput ? reasonInput.value : '';
-        const res = await fetch('/api/staff/order/review', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ orderId: id, action: action, reason: reason })
-        });
-        if (res.ok) { alert('Обновлено'); loadOrders(); }
-    };
-
-    // --- МОИ ОТЧЕТЫ ---
-    const loadMyReports = async () => {
-        const container = document.getElementById('my-reports-list');
-        try {
-            const res = await fetch('/api/staff/my-reports');
-            const reports = await res.json();
-            window.allReportsData = reports;
-
-            if (reports.length === 0) {
-                container.innerHTML = '<p style="color:var(--text-muted); text-align:center;">Вы еще не сдавали отчеты.</p>';
-                return;
-            }
-
-            container.innerHTML = '';
-            reports.forEach(rep => {
-                const div = document.createElement('div');
-                div.className = 'report-item';
-                div.style.cursor = 'pointer';
-                div.onclick = () => window.openScreenshots(rep.id, `Скриншоты отчета: ${rep.type}`);
-                
-                let statusText = '';
-                let statusColor = '';
-                if (rep.status === 'pending') { statusText = 'На проверке'; statusColor = 'var(--gold)'; }
-                else if (rep.status === 'approved') { statusText = 'Одобрен'; statusColor = 'var(--success)'; }
-                else if (rep.status === 'rejected') { statusText = 'Отклонен'; statusColor = 'var(--accent)'; }
-
-                div.innerHTML = `
-                    <h4>${rep.type} <span style="color: ${statusColor}; font-size: 14px; margin-left: 10px;">[${statusText}]</span></h4>
-                    <p>${rep.text}</p>
-                    <p style="font-size: 12px; color: var(--text-muted); margin-top: 5px;">Дата: ${rep.date || 'Не указана'} | Неделя: ${rep.week || 'Не указана'}</p>
-                    ${rep.status === 'rejected' && rep.reason ? `<p style="color: var(--accent); font-size: 14px; margin-top: 5px;"><b>Причина:</b> ${rep.reason}</p>` : ''}
-                    <p style="font-size: 12px; color: var(--accent); margin-top: 10px;">👁 Нажмите, чтобы посмотреть скриншоты</p>
-                `;
-                container.appendChild(div);
-            });
-        } catch (e) { console.error(e); container.innerHTML = '<p style="color:red; text-align:center;">Ошибка загрузки</p>'; }
-    };
-
-    // --- МОИ ЗАКАЗЫ ---
-    const loadMyOrders = async () => {
-        const container = document.getElementById('my-orders-list');
-        try {
-            const res = await fetch('/api/staff/my-orders');
-            const orders = await res.json();
-
-            if (orders.length === 0) {
-                container.innerHTML = '<p style="color:var(--text-muted); text-align:center;">Вы еще не делали заказов.</p>';
-                return;
-            }
-
-            container.innerHTML = '';
-            orders.forEach(o => {
-                const div = document.createElement('div');
-                div.className = 'report-item';
-                
-                let statusText = '';
-                let statusColor = '';
-                if (o.status === 'pending') { statusText = 'Ожидает выдачи'; statusColor = 'var(--gold)'; }
-                else if (o.status === 'issued') { statusText = 'Выдано'; statusColor = 'var(--success)'; }
-                else if (o.status === 'rejected') { statusText = 'Отклонено'; statusColor = 'var(--accent)'; }
-
-                div.innerHTML = `
-                    <h4>${o.itemName} <span style="color: ${statusColor}; font-size: 14px; margin-left: 10px;">[${statusText}]</span></h4>
-                    <p>Стоимость: ${o.price} LSMC</p>
-                    ${o.status === 'rejected' && o.reason ? `<p style="color: var(--accent); font-size: 14px; margin-top: 5px;"><b>Причина:</b> ${o.reason}</p>` : ''}
-                    <p style="font-size: 12px; color: var(--text-muted); margin-top: 10px;">Дата заказа: ${new Date(o.timestamp).toLocaleString()}</p>
-                `;
-                container.appendChild(div);
-            });
-        } catch (e) { console.error(e); container.innerHTML = '<p style="color:red; text-align:center;">Ошибка загрузки</p>'; }
-    };
-
-    // =========================================================================
-    // --- БАЗА ДАННЫХ СОТРУДНИКОВ (ЛИДЕР) ---
-    // =========================================================================
-    let allUsers = [];
-    let currentEditUser = null;
-
-    const loadDatabase = async () => {
-        const tbody = document.getElementById('db-table-body');
-        if (!tbody) return;
-        
-        try {
-            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:var(--text-muted);">Загрузка...</td></tr>';
-            const res = await fetch('/api/leader/users');
-            
-            // Если сервер вернул ошибку (403, 401 и т.д.)
-            if (!res.ok) {
-                const errorData = await res.json();
-                throw new Error(errorData.error || 'Ошибка сервера');
-            }
-
-            allUsers = await res.json();
-            renderDbTable(allUsers);
-        } catch (e) {
-            console.error(e);
-            // Выводим текст ошибки прямо на страницу
-            tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:red; padding: 20px;">
-                <b>Ошибка загрузки:</b><br>${e.message}
-            </td></tr>`;
-        }
-    };
-
-    const renderDbTable = (users) => {
-        const tbody = document.getElementById('db-table-body');
-        tbody.innerHTML = '';
-        
-        if (users.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:var(--text-muted);">Сотрудники не найдены</td></tr>';
-            return;
-        }
-
-        users.forEach(u => {
-            const tr = document.createElement('tr');
-            
-            let avatarUrl = 'https://cdn.discordapp.com/embed/avatars/0.png';
-            if (u.avatar) {
-                avatarUrl = `https://cdn.discordapp.com/avatars/${u.id}/${u.avatar}.png`;
-            }
-
-            tr.innerHTML = `
-                <td>
-                    <div class="db-user-cell">
-                        <img src="${avatarUrl}" alt="Avatar" class="db-avatar">
-                        <span class="db-username">${u.username}</span>
-                    </div>
-                </td>
-                <td><span class="db-id">${u.id}</span></td>
-                <td><span class="db-balance">${u.balance} LSMC</span></td>
-                <td><span class="db-earned">${u.totalEarned} LSMC</span></td>
-                <td><span class="db-warns">${u.warnings}</span></td>
-                <td style="text-align: right;">
-                    <button class="btn-manage" onclick="openUserManage('${u.id}')">Управление</button>
-                </td>
-            `;
-            tbody.appendChild(tr);
-        });
-    };
-
-    const searchInput = document.getElementById('db-search');
-    if (searchInput) {
-        searchInput.addEventListener('input', (e) => {
-            const query = e.target.value.toLowerCase();
-            const filtered = allUsers.filter(u => 
-                u.username.toLowerCase().includes(query) || 
-                u.id.includes(query)
-            );
-            renderDbTable(filtered);
-        });
-    }
-
-    window.openUserManage = (userId) => {
-        const user = allUsers.find(u => u.id === userId);
-        if (!user) return;
-        
-        currentEditUser = user;
-        document.getElementById('manage-user-name').textContent = user.username;
-        document.getElementById('manage-warn-count').textContent = user.warnings;
-        document.getElementById('manage-amount').value = '';
-        
-        document.getElementById('user-manage-modal').style.display = 'flex';
-    };
-
-    const userModal = document.getElementById('user-manage-modal');
-    const closeUserModal = document.querySelector('.close-user-modal');
-    if (closeUserModal) {
-        closeUserModal.addEventListener('click', () => userModal.style.display = 'none');
-    }
-    window.addEventListener('click', (e) => {
-        if (e.target === userModal) userModal.style.display = 'none';
     });
 
-    window.manageBalance = async (action) => {
-        if (!currentEditUser) return;
-        const amount = document.getElementById('manage-amount').value;
-        if (!amount || amount <= 0) return alert('Введите корректную сумму');
+    saveDB(db);
 
-        try {
-            const res = await fetch('/api/leader/users/balance', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ userId: currentEditUser.id, amount: amount, action: action })
-            });
-            const data = await res.json();
-            
-            if (data.success) {
-                alert(`Успешно! Новый баланс: ${data.newBalance} LSMC`);
-                currentEditUser.balance = data.newBalance;
-                if (action === 'add') currentEditUser.totalEarned += parseInt(amount);
-                
-                document.getElementById('manage-amount').value = '';
-                loadDatabase();
-            } else {
-                alert('Ошибка: ' + data.error);
-            }
-        } catch (e) {
-            alert('Ошибка сети');
-        }
+    const orderList = items.map(i => `• ${i.name} (${i.price} LSMC)`).join('\n');
+    const payload = {
+        username: "LSMC | Новый заказ",
+        embeds: [{
+            title: "🛒 Новый заказ из магазина",
+            color: 3447003,
+            fields: [
+                { name: "Сотрудник", value: `<@${req.session.user.id}> (${req.session.user.username})`, inline: false },
+                { name: "Товары", value: orderList, inline: false },
+                { name: "Итого", value: `${totalPrice} LSMC`, inline: true },
+                { name: "Остаток баланса", value: `${user.balance} LSMC`, inline: true }
+            ],
+            timestamp: new Date().toISOString()
+        }]
     };
 
-    window.manageWarn = async (action) => {
-        if (!currentEditUser) return;
+    await sendToDiscord(WEBHOOK_ORDERS, payload, []);
+    res.json({ success: true, newBalance: user.balance });
+});
+
+// --- МАГАЗИН ---
+app.get('/api/staff/shop', (req, res) => {
+    const db = getDB();
+    res.json(db.shop || []);
+});
+
+// --- УПРАВЛЕНИЕ МАГАЗИНОМ (LEADER) ---
+app.post('/api/leader/shop/add', (req, res) => {
+    if (!req.session.user || !req.session.user.isLeader) return res.status(403).json({ error: 'Доступ запрещен' });
+    const { name, price, desc, icon } = req.body;
+    const db = getDB();
+    const newItem = { id: Date.now().toString(), name, price: parseInt(price), desc, icon: icon || '🎁' };
+    db.shop.push(newItem);
+    saveDB(db);
+    res.json({ success: true, item: newItem });
+});
+
+app.post('/api/leader/shop/remove', (req, res) => {
+    if (!req.session.user || !req.session.user.isLeader) return res.status(403).json({ error: 'Доступ запрещен' });
+    const { itemId } = req.body;
+    const db = getDB();
+    db.shop = db.shop.filter(i => i.id !== itemId);
+    saveDB(db);
+    res.json({ success: true });
+});
+
+// --- ЗАКАЗЫ (ВЫДАЧА) ---
+app.get('/api/staff/orders', (req, res) => {
+    if (!req.session.user || !req.session.user.isLeader) return res.status(403).json({ error: 'Доступ запрещен' });
+    const db = getDB();
+    res.json(db.orders || []);
+});
+
+app.post('/api/staff/order/review', (req, res) => {
+    if (!req.session.user || !req.session.user.isLeader) return res.status(403).json({ error: 'Доступ запрещен' });
+    const { orderId, action, reason } = req.body;
+    const db = getDB();
+    const order = db.orders.find(o => o.id === orderId);
+    if (!order) return res.status(404).json({ error: 'Заказ не найден' });
+
+    order.status = action;
+    if (action === 'rejected' && reason) {
+        order.reason = reason;
+    }
+    saveDB(db);
+    res.json({ success: true });
+});
+
+// --- НОВОСТИ ---
+app.get('/api/news', (req, res) => {
+    const db = getDB();
+    res.json(db.news || []);
+});
+
+app.post('/api/leader/news/add', (req, res) => {
+    if (!req.session.user || !req.session.user.isLeader) return res.status(403).json({ error: 'Доступ запрещен' });
+    const { title, text, tag, date, image } = req.body; 
+    const db = getDB();
+    if (!db.news) db.news = [];
+    
+    db.news.push({
+        id: Date.now().toString(),
+        title, 
+        text, 
+        tag, 
+        date,
+        image: image || null 
+    });
+    saveDB(db);
+    res.json({ success: true });
+});
+
+app.post('/api/leader/news/remove', (req, res) => {
+    if (!req.session.user || !req.session.user.isLeader) return res.status(403).json({ error: 'Доступ запрещен' });
+    const { newsId } = req.body;
+    const db = getDB();
+    if (!db.news) db.news = [];
+    db.news = db.news.filter(n => n.id !== newsId);
+    saveDB(db);
+    res.json({ success: true });
+});
+
+// --- БАЗА ДАННЫХ СОТРУДНИКОВ (ДЛЯ ЛИДЕРА) ---
+app.get('/api/leader/users', async (req, res) => {
+    if (!req.session.user || !req.session.user.isLeader) return res.status(403).json({ error: 'Доступ запрещен' });
+    const db = getDB();
+    let discordMembers = [];
+
+    try {
+        const response = await axios.get(`https://discord.com/api/guilds/${GUILD_ID}/members?limit=1000`, {
+            headers: { Authorization: `Bot ${BOT_TOKEN}` }
+        });
         
-        try {
-            const res = await fetch('/api/leader/users/warn', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ userId: currentEditUser.id, action: action })
-            });
-            const data = await res.json();
-            
-            if (data.success) {
-                currentEditUser.warnings = data.warnings;
-                document.getElementById('manage-warn-count').textContent = data.warnings;
-                loadDatabase();
-            } else {
-                alert('Ошибка: ' + data.error);
-            }
-        } catch (e) {
-            alert('Ошибка сети');
-        }
-    };
+        discordMembers = response.data.filter(member => {
+            if (member.user.bot) return false;
+            const roles = member.roles;
+            return roles.includes(STAFF_ROLE_ID) || 
+                   roles.includes(HIGH_STAFF_ROLE_ID) || 
+                   roles.includes(DEPUTY_ROLE_ID) || 
+                   roles.includes(LEADER_ROLE_ID);
+        });
+    } catch (error) {
+        console.error("[DISCORD API] Ошибка получения участников:", error.message);
+        discordMembers = Object.keys(db.users).map(id => ({
+            user: { id: id },
+            nick: db.users[id].username,
+            avatar: db.users[id].avatar,
+            roles: [] 
+        }));
+    }
+
+    const users = discordMembers.map(member => {
+        const userId = member.user.id;
+        const dbUser = db.users[userId] || { balance: 0, totalEarned: 0, inventory: [], warnings: 0 };
+        const displayName = member.nick || member.user.username || 'Неизвестный';
+        
+        let avatarHash = null;
+        if (member.user && member.user.avatar) avatarHash = member.user.avatar;
+        else if (dbUser.avatar) avatarHash = dbUser.avatar;
+
+        return {
+            id: userId,
+            username: displayName,
+            avatar: avatarHash,
+            balance: dbUser.balance || 0,
+            totalEarned: dbUser.totalEarned || 0,
+            inventory: dbUser.inventory || [],
+            warnings: dbUser.warnings || 0,
+            isInDb: !!db.users[userId]
+        };
+    });
+
+    users.sort((a, b) => b.balance - a.balance);
+    res.json(users);
+});
+
+app.post('/api/leader/users/balance', (req, res) => {
+    if (!req.session.user || !req.session.user.isLeader) return res.status(403).json({ error: 'Доступ запрещен' });
+    const { userId, amount, action } = req.body;
+    const db = getDB();
+    
+    if (!db.users[userId]) {
+        db.users[userId] = { balance: 0, inventory: [], totalEarned: 0, avatar: null, username: 'Сотрудник', warnings: 0 };
+    }
+    
+    const user = db.users[userId];
+    const parsedAmount = parseInt(amount);
+    
+    if (isNaN(parsedAmount) || parsedAmount <= 0) return res.status(400).json({ error: 'Неверная сумма' });
+
+    if (action === 'add') {
+        user.balance = (user.balance || 0) + parsedAmount;
+        user.totalEarned = (user.totalEarned || 0) + parsedAmount;
+    } else if (action === 'remove') {
+        if (user.balance < parsedAmount) return res.status(400).json({ error: 'Недостаточно средств у сотрудника' });
+        user.balance -= parsedAmount;
+    }
+
+    saveDB(db);
+    res.json({ success: true, newBalance: user.balance });
+});
+
+app.post('/api/leader/users/warn', (req, res) => {
+    if (!req.session.user || !req.session.user.isLeader) return res.status(403).json({ error: 'Доступ запрещен' });
+    const { userId, action } = req.body;
+    const db = getDB();
+    
+    if (!db.users[userId]) {
+        db.users[userId] = { balance: 0, inventory: [], totalEarned: 0, avatar: null, username: 'Сотрудник', warnings: 0 };
+    }
+    
+    const user = db.users[userId];
+    user.warnings = user.warnings || 0;
+
+    if (action === 'add') user.warnings++;
+    else if (action === 'remove' && user.warnings > 0) user.warnings--;
+
+    saveDB(db);
+    res.json({ success: true, warnings: user.warnings });
+});
+
+app.listen(PORT, '0.0.0.0', () => {
+    console.log(`Сервер LSMC запущен на порту ${PORT}`);
 });
