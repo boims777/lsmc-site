@@ -14,6 +14,7 @@ const CLIENT_SECRET = '7HxG9VQHJFptlnU5OTY17XFKscAY6Zhz';
 const REDIRECT_URI = 'https://lsmc-site.onrender.com/auth/discord/callback';
 const GUILD_ID = '1176546172240928808'; 
 
+// ⚠️ ТОКЕН БОТА БЕРЕТСЯ ИЗ ПЕРЕМЕННЫХ ОКРУЖЕНИЯ RENDER
 const BOT_TOKEN = process.env.BOT_TOKEN; 
 
 // --- ID РОЛЕЙ ---
@@ -59,7 +60,7 @@ app.use(session({
 const getStartOfWeek = (date) => {
     const d = new Date(date);
     const day = d.getDay();
-    const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+    const diff = d.getDate() - day + (day === 0 ? -6 : 1); // Понедельник
     return new Date(d.setDate(diff)).setHours(0,0,0,0);
 };
 
@@ -74,6 +75,7 @@ app.get('/auth/discord/callback', async (req, res) => {
     if (!code) return res.redirect('/index.html');
 
     try {
+        // 1. Получаем токен пользователя (OAuth2)
         const tokenResponse = await axios.post('https://discord.com/api/oauth2/token', new URLSearchParams({
             client_id: CLIENT_ID,
             client_secret: CLIENT_SECRET,
@@ -84,23 +86,32 @@ app.get('/auth/discord/callback', async (req, res) => {
 
         const accessToken = tokenResponse.data.access_token;
         
+        // 2. Получаем базовые данные пользователя (ID и Аватар)
         const userResponse = await axios.get('https://discord.com/api/users/@me', {
             headers: { Authorization: `Bearer ${accessToken}` }
         });
         const user = userResponse.data;
 
         let isStaff = false, isHighStaff = false, isLeader = false;
-        let serverNickname = user.username;
+        let serverNickname = user.username; // По умолчанию - глобальный ник
         
         try {
+            // 3. Используем БОТА, чтобы получить данные участника на конкретном сервере (включая ник)
+            console.log(`[БОТ] Запрос данных для пользователя ID: ${user.id}`);
+            
             const memberResponse = await axios.get(`https://discord.com/api/guilds/${GUILD_ID}/members/${user.id}`, {
                 headers: { Authorization: `Bot ${BOT_TOKEN}` }
             });
             const member = memberResponse.data;
             const roles = member.roles;
             
-            if (member.nick) serverNickname = member.nick;
+            // Если на сервере есть установленный ник (Nickname), используем его. Иначе - глобальный.
+            if (member.nick) {
+                serverNickname = member.nick;
+            }
+            console.log(`[БОТ] Успех! Ник: ${serverNickname}, Роли: ${roles.join(', ')}`);
 
+            // Проверка ролей
             if (roles.includes(STAFF_ROLE_ID)) isStaff = true;
             if (roles.includes(HIGH_STAFF_ROLE_ID)) isHighStaff = true;
             if (roles.includes(DEPUTY_ROLE_ID)) isLeader = true;
@@ -110,9 +121,18 @@ app.get('/auth/discord/callback', async (req, res) => {
             if (isHighStaff) isStaff = true;
 
         } catch (e) { 
-            console.error("Ошибка получения данных участника:", e.message);
+            console.error("==================================================");
+            console.error("[ОШИБКА БОТА] Не удалось получить данные участника!");
+            if (e.response) {
+                console.error("Статус:", e.response.status);
+                console.error("Ответ Discord:", e.response.data);
+            } else {
+                console.error("Текст ошибки:", e.message);
+            }
+            console.error("==================================================");
         }
 
+        // Записываем в сессию серверный ник
         req.session.user = { 
             id: user.id, 
             username: serverNickname, 
@@ -133,7 +153,7 @@ app.get('/auth/discord/callback', async (req, res) => {
 
         res.redirect('/index.html'); 
     } catch (error) {
-        console.error("Ошибка OAuth2:", error.message);
+        console.error("Ошибка OAuth2 (вход):", error.message);
         res.redirect('/index.html');
     }
 });
@@ -493,7 +513,9 @@ app.get('/api/leader/users', async (req, res) => {
             headers: { Authorization: `Bot ${BOT_TOKEN}` }
         });
         
-        // Фильтруем: оставляем только тех, у кого есть роль сотрудника (или выше)
+        console.log(`[DISCORD API] Получено участников: ${response.data.length}`);
+
+        // Фильтруем: оставляем только тех, у кого есть ЛЮБАЯ из ролей LSMC
         discordMembers = response.data.filter(member => {
             if (member.user.bot) return false; // Пропускаем ботов
             const roles = member.roles;
@@ -503,21 +525,38 @@ app.get('/api/leader/users', async (req, res) => {
                    roles.includes(LEADER_ROLE_ID);
         });
 
+        console.log(`[DISCORD API] Найдено сотрудников с ролями: ${discordMembers.length}`);
+
     } catch (error) {
-        console.error("[DISCORD API] Ошибка получения участников:", error.message);
+        console.error("==================================================");
+        console.error("[DISCORD API] ОШИБКА ПОЛУЧЕНИЯ УЧАСТНИКОВ!");
+        if (error.response) {
+            console.error("Статус:", error.response.status);
+            console.error("Ответ Discord:", error.response.data);
+            // Если ошибка 403 - значит у бота нет прав (нужен Server Members Intent)
+            if (error.response.status === 403) {
+                return res.status(403).json({ 
+                    error: "У бота нет прав для чтения списка участников. Включите 'Server Members Intent' в Discord Developer Portal." 
+                });
+            }
+        } else {
+            console.error("Текст ошибки:", error.message);
+        }
+        console.error("==================================================");
+        
         // Если Discord API недоступен, возвращаем хотя бы тех, кто есть в БД
         discordMembers = Object.keys(db.users).map(id => ({
             user: { id: id },
             nick: db.users[id].username,
-            avatar: db.users[id].avatar
+            avatar: db.users[id].avatar,
+            roles: [] // Заглушка
         }));
     }
 
-    // Формируем итоговый список, объединяя данные из Discord и из БД
+    // Формируем итоговый список
     const users = discordMembers.map(member => {
         const userId = member.user.id;
         
-        // Если пользователь есть в БД, берем его данные, иначе ставим нули
         const dbUser = db.users[userId] || { 
             balance: 0, 
             totalEarned: 0, 
@@ -525,22 +564,25 @@ app.get('/api/leader/users', async (req, res) => {
             warnings: 0 
         };
 
-        // Ник на сервере (или глобальный, если ника нет)
         const displayName = member.nick || member.user.username || 'Неизвестный';
         
-        // Аватар
-        const avatarHash = member.user.avatar || dbUser.avatar;
-        const avatarUrl = avatarHash ? avatarHash : null;
+        // Аватар (в Discord API аватар может быть null, если у пользователя стандартный)
+        let avatarHash = null;
+        if (member.user && member.user.avatar) {
+            avatarHash = member.user.avatar;
+        } else if (dbUser.avatar) {
+            avatarHash = dbUser.avatar;
+        }
 
         return {
             id: userId,
             username: displayName,
-            avatar: avatarUrl,
+            avatar: avatarHash,
             balance: dbUser.balance || 0,
             totalEarned: dbUser.totalEarned || 0,
             inventory: dbUser.inventory || [],
             warnings: dbUser.warnings || 0,
-            isInDb: !!db.users[userId] // Полезный флаг (опционально)
+            isInDb: !!db.users[userId]
         };
     });
 
@@ -556,7 +598,10 @@ app.post('/api/leader/users/balance', (req, res) => {
     const { userId, amount, action } = req.body; // action: 'add' или 'remove'
     const db = getDB();
     
-    if (!db.users[userId]) return res.status(404).json({ error: 'Пользователь не найден' });
+    if (!db.users[userId]) {
+        // Если пользователя нет в БД (он еще не заходил), создаем ему запись
+        db.users[userId] = { balance: 0, inventory: [], totalEarned: 0, avatar: null, username: 'Сотрудник', warnings: 0 };
+    }
     
     const user = db.users[userId];
     const parsedAmount = parseInt(amount);
@@ -581,7 +626,10 @@ app.post('/api/leader/users/warn', (req, res) => {
     const { userId, action } = req.body; // action: 'add' или 'remove'
     const db = getDB();
     
-    if (!db.users[userId]) return res.status(404).json({ error: 'Пользователь не найден' });
+    if (!db.users[userId]) {
+        // Если пользователя нет в БД, создаем ему запись
+        db.users[userId] = { balance: 0, inventory: [], totalEarned: 0, avatar: null, username: 'Сотрудник', warnings: 0 };
+    }
     
     const user = db.users[userId];
     user.warnings = user.warnings || 0;
