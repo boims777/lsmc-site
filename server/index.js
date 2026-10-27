@@ -22,6 +22,9 @@ const HIGH_STAFF_ROLE_ID = '1564177985060212766'; // Старший состав
 const DEPUTY_ROLE_ID = '1564180732597895188';     // Зам лидера
 const LEADER_ROLE_ID = '1564180867079864460';     // Лидер
 
+const DEPT_HEAD_ROLE_ID = '1564602291900653629';  // Глава отдела
+const DEPT_DEPUTY_ROLE_ID = '1564602430476521512'; // Зам главы отдела
+
 // --- ID ОТДЕЛОВ ---
 const PRD_ROLE_ID = '1564597566912471121'; 
 const OK_ROLE_ID = '1564597995209760778';
@@ -504,7 +507,9 @@ app.get('/api/leader/users', async (req, res) => {
             return roles.includes(STAFF_ROLE_ID) || 
                    roles.includes(HIGH_STAFF_ROLE_ID) || 
                    roles.includes(DEPUTY_ROLE_ID) || 
-                   roles.includes(LEADER_ROLE_ID);
+                   roles.includes(LEADER_ROLE_ID) ||
+                   roles.includes(DEPT_HEAD_ROLE_ID) ||
+                   roles.includes(DEPT_DEPUTY_ROLE_ID);
         });
     } catch (error) {
         console.error("[DISCORD API] Ошибка получения участников:", error.message);
@@ -523,11 +528,57 @@ app.get('/api/leader/users', async (req, res) => {
         const displayName = member.nick || member.user.username || 'Неизвестный';
         const usernameDiscord = member.user.username || 'unknown'; 
         
-        let department = 'Не назначен';
-        if (member.roles.includes(PRD_ROLE_ID)) department = 'PRD';
-        else if (member.roles.includes(OK_ROLE_ID)) department = 'ОК';
-        else if (member.roles.includes(SMPD_ROLE_ID)) department = 'SMPD';
-        else if (member.roles.includes(LEADER_ROLE_ID) || member.roles.includes(DEPUTY_ROLE_ID)) department = 'Руководство';
+        const roles = member.roles;
+        
+        let rankWeight = 0;
+        let deptWeight = 0; 
+        let deptName = '';
+        let deptIcon = '';
+
+        // Иерархия отделов: ОК (3) > SMPD (2) > PRD (1)
+        if (roles.includes(OK_ROLE_ID)) { 
+            deptName = 'ОК'; deptIcon = '📋'; deptWeight = 3; 
+        } else if (roles.includes(SMPD_ROLE_ID)) { 
+            deptName = 'SMPD'; deptIcon = '🧠'; deptWeight = 2; 
+        } else if (roles.includes(PRD_ROLE_ID)) { 
+            deptName = 'PRD'; deptIcon = '🚑'; deptWeight = 1; 
+        } else {
+            deptName = 'Не назначен'; deptIcon = '❓'; deptWeight = 0;
+        }
+
+        let rankTitle = 'Сотрудник';
+        
+        if (roles.includes(LEADER_ROLE_ID)) {
+            rankWeight = 100;
+            rankTitle = 'Лидер';
+            deptName = 'Все'; deptIcon = '👑';
+            deptWeight = 99; 
+        } else if (roles.includes(DEPUTY_ROLE_ID)) {
+            rankWeight = 90;
+            rankTitle = 'Зам. Лидера';
+            deptName = 'Все'; deptIcon = '🛡️';
+            deptWeight = 99;
+        } else if (roles.includes(DEPT_HEAD_ROLE_ID)) {
+            rankWeight = 80;
+            rankTitle = 'Глава отдела';
+        } else if (roles.includes(DEPT_DEPUTY_ROLE_ID)) {
+            rankWeight = 70;
+            rankTitle = 'Зам. Главы';
+        } else if (roles.includes(HIGH_STAFF_ROLE_ID)) {
+            rankWeight = 60;
+            rankTitle = 'Ст. Состав';
+        } else {
+            rankWeight = 10;
+        }
+
+        let rankBadge = '';
+        if (rankWeight >= 90) {
+            rankBadge = `${deptIcon} ${rankTitle}`;
+        } else if (rankWeight === 10) {
+            rankBadge = `${deptIcon} ${deptName} | Сотрудник`;
+        } else {
+            rankBadge = `${deptIcon} ${deptName} | ${rankTitle}`;
+        }
 
         let avatarHash = null;
         if (member.user && member.user.avatar) avatarHash = member.user.avatar;
@@ -537,7 +588,9 @@ app.get('/api/leader/users', async (req, res) => {
             id: userId,
             username: displayName,
             discordTag: usernameDiscord, 
-            department: department,      
+            department: rankBadge, 
+            rankWeight: rankWeight, 
+            deptWeight: deptWeight, 
             avatar: avatarHash,
             balance: dbUser.balance || 0,
             totalEarned: dbUser.totalEarned || 0,
@@ -547,7 +600,13 @@ app.get('/api/leader/users', async (req, res) => {
         };
     });
 
-    users.sort((a, b) => b.balance - a.balance);
+    // Сортировка: Должность -> Отдел -> Баланс
+    users.sort((a, b) => {
+        if (b.rankWeight !== a.rankWeight) return b.rankWeight - a.rankWeight;
+        if (b.deptWeight !== a.deptWeight) return b.deptWeight - a.deptWeight;
+        return b.balance - a.balance;
+    });
+
     res.json(users);
 });
 

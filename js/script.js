@@ -1022,18 +1022,26 @@ document.addEventListener("DOMContentLoaded", () => {
                 avatarUrl = `https://cdn.discordapp.com/avatars/${u.id}/${u.avatar}.png`;
             }
 
-            let deptClass = 'db-dept--none';
-            if (u.department === 'PRD') deptClass = 'db-dept--prd';
-            else if (u.department === 'ОК') deptClass = 'db-dept--ok';
-            else if (u.department === 'SMPD') deptClass = 'db-dept--smpd';
-            else if (u.department === 'Руководство') deptClass = 'db-dept--lead';
+            let deptClass = 'db-dept--staff';
+            if (u.rankWeight === 100) deptClass = 'db-dept--leader';
+            else if (u.rankWeight === 90) deptClass = 'db-dept--deputy';
+            else if (u.rankWeight === 80) deptClass = 'db-dept--head';
+            else if (u.rankWeight === 70) deptClass = 'db-dept--dep-head';
+            else if (u.rankWeight === 60) deptClass = 'db-dept--high';
+
+            let medalHtml = '';
+            if (u.rankWeight === 80) {
+                if (u.department.includes('ОК')) medalHtml = '<span style="margin-left: 5px; font-size: 16px;">🥇</span>';
+                else if (u.department.includes('SMPD')) medalHtml = '<span style="margin-left: 5px; font-size: 16px;">🥈</span>';
+                else if (u.department.includes('PRD')) medalHtml = '<span style="margin-left: 5px; font-size: 16px;">🥉</span>';
+            }
 
             tr.innerHTML = `
                 <td>
                     <div class="db-user-cell">
                         <img src="${avatarUrl}" alt="Avatar" class="db-avatar">
                         <div class="db-user-info">
-                            <span class="db-username">${u.username}</span>
+                            <span class="db-username">${u.username} ${medalHtml}</span>
                             <span class="db-discord-tag">@${u.discordTag}</span>
                             <span class="db-dept ${deptClass}">${u.department}</span>
                         </div>

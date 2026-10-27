@@ -231,67 +231,19 @@
                         </div>
 
                         <div class="stats-grid">
-                            <!-- Баланс -->
-                            <div class="stat-card balance-card">
-                                <div class="stat-icon">💰</div>
-                                <div class="stat-info">
-                                    <span class="stat-label">Баланс</span>
-                                    <strong class="stat-value" id="stat-balance">0</strong>
-                                    <span class="stat-currency">LSMC</span>
-                                </div>
-                            </div>
-                            
-                            <!-- Всего заработано -->
-                            <div class="stat-card earned-card">
-                                <div class="stat-icon">📈</div>
-                                <div class="stat-info">
-                                    <span class="stat-label">Всего заработано</span>
-                                    <strong class="stat-value" id="stat-earned">0</strong>
-                                    <span class="stat-currency">LSMC</span>
-                                </div>
-                            </div>
-                            
-                            <!-- Отправлено отчетов -->
-                            <div class="stat-card total-card">
-                                <div class="stat-icon">📝</div>
-                                <div class="stat-info">
-                                    <span class="stat-label">Отправлено отчетов</span>
-                                    <strong class="stat-value" id="stat-total">0</strong>
-                                    <span class="stat-currency">шт.</span>
-                                </div>
-                            </div>
-                            
-                            <!-- Одобрено -->
-                            <div class="stat-card approved-card">
-                                <div class="stat-icon">✅</div>
-                                <div class="stat-info">
-                                    <span class="stat-label">Одобрено</span>
-                                    <strong class="stat-value" id="stat-approved">0</strong>
-                                    <span class="stat-currency">шт.</span>
-                                </div>
-                            </div>
+                            <div class="stat-card balance-card"><div class="stat-icon">💰</div><div class="stat-info"><span class="stat-label">Баланс</span><strong class="stat-value" id="stat-balance">0</strong><span class="stat-currency">LSMC</span></div></div>
+                            <div class="stat-card earned-card"><div class="stat-icon">📈</div><div class="stat-info"><span class="stat-label">Всего заработано</span><strong class="stat-value" id="stat-earned">0</strong><span class="stat-currency">LSMC</span></div></div>
+                            <div class="stat-card total-card"><div class="stat-icon">📝</div><div class="stat-info"><span class="stat-label">Отправлено отчетов</span><strong class="stat-value" id="stat-total">0</strong><span class="stat-currency">шт.</span></div></div>
+                            <div class="stat-card approved-card"><div class="stat-icon">✅</div><div class="stat-info"><span class="stat-label">Одобрено</span><strong class="stat-value" id="stat-approved">0</strong><span class="stat-currency">шт.</span></div></div>
                         </div>
 
-                        <!-- Блок быстрых действий -->
                         <div class="quick-actions-block">
                             <h3 class="quick-actions-title">Быстрые действия</h3>
                             <div class="quick-actions-grid">
-                                <button class="quick-action-btn" onclick="document.querySelector('[data-sub=\'cabinet\']').click()">
-                                    <span class="qa-icon">📤</span>
-                                    <span>Сдать отчет</span>
-                                </button>
-                                <button class="quick-action-btn" onclick="document.querySelector('[data-sub=\'shop\']').click()">
-                                    <span class="qa-icon">🛒</span>
-                                    <span>Магазин наград</span>
-                                </button>
-                                <button class="quick-action-btn" onclick="document.querySelector('[data-sub=\'my-reports\']').click()">
-                                    <span class="qa-icon">📂</span>
-                                    <span>Мои отчеты</span>
-                                </button>
-                                <button class="quick-action-btn" id="qa-review-btn" style="display: none;" onclick="document.querySelector('[data-sub=\'reviews\']').click()">
-                                    <span class="qa-icon">🔍</span>
-                                    <span>Проверка отчетов</span>
-                                </button>
+                                <button class="quick-action-btn" onclick="document.querySelector('[data-sub=\'cabinet\']').click()"><span class="qa-icon">📤</span><span>Сдать отчет</span></button>
+                                <button class="quick-action-btn" onclick="document.querySelector('[data-sub=\'shop\']').click()"><span class="qa-icon">🛒</span><span>Магазин наград</span></button>
+                                <button class="quick-action-btn" onclick="document.querySelector('[data-sub=\'my-reports\']').click()"><span class="qa-icon">📂</span><span>Мои отчеты</span></button>
+                                <button class="quick-action-btn" id="qa-review-btn" style="display: none;" onclick="document.querySelector('[data-sub=\'reviews\']').click()"><span class="qa-icon">🔍</span><span>Проверка отчетов</span></button>
                             </div>
                         </div>
                     </div>
@@ -348,7 +300,6 @@
                                 <div class="form-group"><label>Текст новости</label><textarea id="news-text" rows="4" placeholder="Текст новости..." required></textarea></div>
                                 <div class="form-group"><label>Тег (категория)</label><input type="text" id="news-tag" placeholder="Например: Важно, Обновление" required></div>
                                 
-                                <!-- Поле для картинки -->
                                 <div class="form-group">
                                     <label>Обложка новости (картинка)</label>
                                     <div class="file-upload-zone" id="news-file-zone">
@@ -422,7 +373,6 @@
                             <h2 id="manage-user-name" style="margin-bottom: 20px; text-align: center;">Управление</h2>
                             
                             <div style="display: flex; flex-direction: column; gap: 20px;">
-                                <!-- Блок работы с балансом -->
                                 <div style="background: rgba(0,0,0,0.2); padding: 15px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">
                                     <h4 style="margin-bottom: 10px; color: var(--text-main); font-size: 16px;">💰 Валюта</h4>
                                     <div style="display: flex; gap: 10px; align-items: center;">
@@ -432,7 +382,6 @@
                                     </div>
                                 </div>
 
-                                <!-- Блок работы с варнами -->
                                 <div style="background: rgba(0,0,0,0.2); padding: 15px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">
                                     <h4 style="margin-bottom: 10px; color: var(--text-main); font-size: 16px;">⚠️ Предупреждения (Варны)</h4>
                                     <div style="display: flex; gap: 10px; align-items: center;">
@@ -463,9 +412,7 @@
     <div id="news-modal" class="cart-modal" style="display: none;">
         <div class="cart-modal-content" style="max-width: 800px;">
             <span class="close-news-modal" style="position: absolute; top: 15px; right: 20px; font-size: 28px; cursor: pointer; color: var(--text-muted);">&times;</span>
-            
             <img id="news-modal-image" src="" alt="Cover" style="display: none;">
-            
             <span id="news-modal-tag" style="background: var(--accent); color: white; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: bold; text-transform: uppercase; display: inline-block; margin-bottom: 15px;">ТЕГ</span>
             <h2 id="news-modal-title" style="font-family: 'Montserrat', sans-serif; font-size: 28px; margin-bottom: 10px;">Заголовок</h2>
             <p id="news-modal-date" style="color: var(--text-muted); font-size: 14px; margin-bottom: 20px;">Дата</p>

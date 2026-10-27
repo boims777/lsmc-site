@@ -15,16 +15,7 @@
     --bronze: #d97706;
 }
 
-body { 
-    font-family: 'Inter', sans-serif; 
-    background-color: var(--bg-dark); 
-    color: var(--text-main); 
-    line-height: 1.6; 
-    display: flex; 
-    flex-direction: column; 
-    min-height: 100vh; 
-    overflow-x: hidden; 
-}
+body { font-family: 'Inter', sans-serif; background-color: var(--bg-dark); color: var(--text-main); line-height: 1.6; display: flex; flex-direction: column; min-height: 100vh; overflow-x: hidden; }
 main { flex: 1; display: flex; flex-direction: column; }
 .container { max-width: 1200px; margin: 0 auto; padding: 0 20px; }
 
@@ -310,32 +301,27 @@ main { flex: 1; display: flex; flex-direction: column; }
 .btn-manage { background: rgba(255,255,255,0.05); border: 1px solid var(--border-glass); color: white; padding: 8px 12px; border-radius: 8px; cursor: pointer; font-size: 13px; transition: all 0.3s; white-space: nowrap; }
 .btn-manage:hover { background: var(--accent); border-color: var(--accent); }
 
-/* БЕЙДЖИ ОТДЕЛОВ В БАЗЕ ДАННЫХ */
+/* БЕЙДЖИ ДОЛЖНОСТЕЙ В БАЗЕ ДАННЫХ */
 .db-dept {
-    display: inline-block;
-    padding: 4px 10px;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 12px;
     border-radius: 20px;
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 800;
     text-transform: uppercase;
     letter-spacing: 0.5px;
     margin-top: 5px;
+    width: fit-content;
 }
 
-.db-dept--prd { background: rgba(255, 0, 60, 0.15); color: #ff003c; border: 1px solid rgba(255, 0, 60, 0.3); }
-.db-dept--ok { background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); }
-.db-dept--smpd { background: rgba(88, 101, 242, 0.15); color: #5865F2; border: 1px solid rgba(88, 101, 242, 0.3); }
-.db-dept--lead { background: rgba(251, 191, 36, 0.15); color: #fbbf24; border: 1px solid rgba(251, 191, 36, 0.3); }
-.db-dept--none { background: rgba(255, 255, 255, 0.05); color: var(--text-muted); border: 1px solid rgba(255, 255, 255, 0.1); }
+.db-dept--leader { background: linear-gradient(135deg, rgba(251, 191, 36, 0.2), rgba(251, 191, 36, 0.1)); color: #fbbf24; border: 1px solid rgba(251, 191, 36, 0.4); box-shadow: 0 0 15px rgba(251, 191, 36, 0.2); }
+.db-dept--deputy { background: linear-gradient(135deg, rgba(168, 85, 247, 0.2), rgba(168, 85, 247, 0.1)); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.4); box-shadow: 0 0 15px rgba(168, 85, 247, 0.15); }
+.db-dept--head { background: linear-gradient(135deg, rgba(255, 0, 60, 0.2), rgba(255, 0, 60, 0.1)); color: #ff4d79; border: 1px solid rgba(255, 0, 60, 0.4); box-shadow: 0 0 15px rgba(255, 0, 60, 0.15); }
+.db-dept--dep-head { background: linear-gradient(135deg, rgba(249, 115, 22, 0.2), rgba(249, 115, 22, 0.1)); color: #f97316; border: 1px solid rgba(249, 115, 22, 0.4); }
+.db-dept--high { background: linear-gradient(135deg, rgba(88, 101, 242, 0.2), rgba(88, 101, 242, 0.1)); color: #818cf8; border: 1px solid rgba(88, 101, 242, 0.4); }
+.db-dept--staff { background: rgba(255, 255, 255, 0.05); color: var(--text-muted); border: 1px solid rgba(255, 255, 255, 0.1); }
 
-.db-user-info {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-}
-
-.db-discord-tag {
-    font-size: 12px;
-    color: var(--text-muted);
-    font-family: monospace;
-}
+.db-user-info { display: flex; flex-direction: column; gap: 2px; }
+.db-discord-tag { font-size: 12px; color: var(--text-muted); font-family: monospace; }
