@@ -30,7 +30,6 @@ document.addEventListener("DOMContentLoaded", () => {
         return `${format(monday)} - ${format(sunday)}`;
     };
 
-    // Устанавливаем даты, если элементы существуют
     if(document.getElementById('job-date')) document.getElementById('job-date').value = getFormattedDate();
     if(document.getElementById('comp-date')) document.getElementById('comp-date').value = getFormattedDate();
     if(document.getElementById('rep-date')) document.getElementById('rep-date').value = getFormattedDate();
@@ -181,6 +180,7 @@ document.addEventListener("DOMContentLoaded", () => {
                         document.getElementById('menu-manage-news').style.display = 'block';
                         document.getElementById('menu-manage-shop').style.display = 'block';
                         document.getElementById('menu-orders').style.display = 'block';
+                        document.getElementById('menu-database').style.display = 'block';
                     }
                 }
             }
@@ -330,6 +330,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (subId === 'my-reports') loadMyReports();
         if (subId === 'my-orders') loadMyOrders();
         if (subId === 'manage-news') loadManageNews();
+        if (subId === 'database') loadDatabase();
     };
 
     staffMenuLinks.forEach(link => {
@@ -346,19 +347,16 @@ document.addEventListener("DOMContentLoaded", () => {
             const res = await fetch('/api/staff/stats');
             const data = await res.json();
             
-            // Показываем имя пользователя
             if (currentUser && currentUser.username) {
                 const statsUsername = document.getElementById('stats-username');
                 if (statsUsername) statsUsername.textContent = currentUser.username;
             }
 
-            // Показываем кнопку "Проверка отчетов", если есть права
             if (currentUser && currentUser.isHighStaff) {
                 const reviewBtn = document.getElementById('qa-review-btn');
                 if (reviewBtn) reviewBtn.style.display = 'flex';
             }
 
-            // Функция для красивой анимации чисел
             const animateValue = (id, endValue, duration = 1000) => {
                 const obj = document.getElementById(id);
                 if (!obj) return;
@@ -366,19 +364,17 @@ document.addEventListener("DOMContentLoaded", () => {
                 const step = (timestamp) => {
                     if (!startTimestamp) startTimestamp = timestamp;
                     const progress = Math.min((timestamp - startTimestamp) / duration, 1);
-                    // Плавное замедление в конце
                     const easeOutQuart = 1 - Math.pow(1 - progress, 4);
                     obj.textContent = Math.floor(easeOutQuart * endValue);
                     if (progress < 1) {
                         window.requestAnimationFrame(step);
                     } else {
-                        obj.textContent = endValue; // Устанавливаем точное значение в конце
+                        obj.textContent = endValue;
                     }
                 };
                 window.requestAnimationFrame(step);
             };
 
-            // Запускаем анимацию
             animateValue('stat-balance', data.balance);
             animateValue('stat-earned', data.totalEarned);
             animateValue('stat-total', data.totalReports);
@@ -438,17 +434,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
         if(!zone || !input || !preview) return { get: () => [], clear: () => {} };
 
-        // Клик по зоне
         zone.addEventListener('click', (e) => { 
             if (e.target.tagName !== 'BUTTON' && !e.target.classList.contains('remove-preview')) {
                 input.click(); 
             }
         });
 
-        // Выбор через проводник
         input.addEventListener('change', (e) => handleFiles(e.target.files));
 
-        // Drag & Drop
         zone.addEventListener('dragover', (e) => { e.preventDefault(); zone.classList.add('dragover'); });
         zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
         zone.addEventListener('drop', (e) => { 
@@ -457,9 +450,7 @@ document.addEventListener("DOMContentLoaded", () => {
             handleFiles(e.dataTransfer.files); 
         });
 
-        // Вставка через Ctrl+V (срабатывает только если зона загрузки видима на экране)
         document.addEventListener('paste', (e) => {
-            // Проверяем, видима ли зона (offsetParent === null значит скрыта)
             if (zone.offsetParent === null) return;
             
             const items = e.clipboardData.items;
@@ -470,7 +461,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
             }
             if(pasted.length > 0) {
-                e.preventDefault(); // Чтобы не вставлялось в текстовые поля
+                e.preventDefault();
                 handleFiles(pasted);
             }
         });
@@ -490,7 +481,6 @@ document.addEventListener("DOMContentLoaded", () => {
                         div.innerHTML = `<img src="${e.target.result}"><button type="button" class="remove-preview">✖</button>`;
                         preview.appendChild(div);
                         
-                        // Удаление превью
                         div.querySelector('.remove-preview').onclick = (ev) => {
                             ev.stopPropagation();
                             files = files.filter(f => f !== file);
@@ -508,7 +498,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const jobUpload = setupUpload('job-file-zone', 'job-file', 'job-preview-container');
     const compUpload = setupUpload('comp-file-zone', 'comp-file', 'comp-preview-container');
     const repUpload = setupUpload('rep-file-zone', 'rep-file', 'rep-preview-container');
-    const newsUpload = setupUpload('news-file-zone', 'news-image', 'news-preview-container'); // Добавили для новостей
+    const newsUpload = setupUpload('news-file-zone', 'news-image', 'news-preview-container');
 
     // --- ОТПРАВКА ФОРМ ---
     const submitForm = (formId, apiUrl, getData, upload) => {
@@ -535,7 +525,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 data.week = getWeekRange();
             }
 
-            // Если это форма новостей, картинка берется как base64 (одна)
             if (formId === 'add-news-form') {
                 if (files.length > 0) {
                     const reader = new FileReader();
@@ -551,7 +540,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 return;
             }
 
-            // Для остальных форм - массив base64
             const base64Images = [];
             let processed = 0;
             files.forEach(file => {
@@ -589,7 +577,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (url === '/api/staff/report') switchStaffSub('stats');
                 if (url === '/api/leader/news/add') {
                     loadManageNews();
-                    // Очищаем превью новости
                     document.getElementById('news-preview-container').innerHTML = '';
                 }
             } else {
@@ -625,7 +612,6 @@ document.addEventListener("DOMContentLoaded", () => {
             const res = await fetch('/api/news');
             let news = await res.json();
             
-            // Сортируем новости: самые новые (по id, так как id = Date.now()) идут первыми
             news.sort((a, b) => b.id - a.id);
 
             container.innerHTML = '';
@@ -640,7 +626,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 div.className = 'news-card';
                 div.onclick = () => window.openNews(item.title, item.text, item.tag, item.date, item.image);
                 
-                // Если картинки нет, ставим заглушку
                 const imageSrc = item.image ? item.image : 'img/hospital.jpg'; 
 
                 div.innerHTML = `
@@ -659,13 +644,12 @@ document.addEventListener("DOMContentLoaded", () => {
                 `;
                 container.appendChild(div);
 
-                // Крутая анимация появления (по очереди)
                 if (typeof gsap !== 'undefined') {
                     gsap.from(div, {
                         y: 30,
                         opacity: 0,
                         duration: 0.6,
-                        delay: index * 0.1, // Задержка для эффекта "каскада"
+                        delay: index * 0.1,
                         ease: "power3.out"
                     });
                 }
@@ -700,7 +684,6 @@ document.addEventListener("DOMContentLoaded", () => {
         } catch(e) { console.error(e); }
     };
 
-    // Форма добавления новостей
     const addNewsForm = document.getElementById('add-news-form');
     if(addNewsForm) {
         addNewsForm.addEventListener('submit', async (e) => {
@@ -715,7 +698,6 @@ document.addEventListener("DOMContentLoaded", () => {
             };
             
             if (files.length > 0) {
-                // Берем только первую картинку
                 const reader = new FileReader();
                 reader.onload = async (event) => {
                     data.image = event.target.result;
@@ -992,5 +974,145 @@ document.addEventListener("DOMContentLoaded", () => {
                 container.appendChild(div);
             });
         } catch (e) { console.error(e); container.innerHTML = '<p style="color:red; text-align:center;">Ошибка загрузки</p>'; }
+    };
+
+    // =========================================================================
+    // --- БАЗА ДАННЫХ СОТРУДНИКОВ (ЛИДЕР) ---
+    // =========================================================================
+    let allUsers = [];
+    let currentEditUser = null;
+
+    const loadDatabase = async () => {
+        const tbody = document.getElementById('db-table-body');
+        if (!tbody) return;
+        
+        try {
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:var(--text-muted);">Загрузка...</td></tr>';
+            const res = await fetch('/api/leader/users');
+            allUsers = await res.json();
+            renderDbTable(allUsers);
+        } catch (e) {
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:red;">Ошибка загрузки</td></tr>';
+        }
+    };
+
+    const renderDbTable = (users) => {
+        const tbody = document.getElementById('db-table-body');
+        tbody.innerHTML = '';
+        
+        if (users.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:var(--text-muted);">Сотрудники не найдены</td></tr>';
+            return;
+        }
+
+        users.forEach(u => {
+            const tr = document.createElement('tr');
+            
+            let avatarUrl = 'https://cdn.discordapp.com/embed/avatars/0.png';
+            if (u.avatar) {
+                avatarUrl = `https://cdn.discordapp.com/avatars/${u.id}/${u.avatar}.png`;
+            }
+
+            tr.innerHTML = `
+                <td>
+                    <div class="db-user-cell">
+                        <img src="${avatarUrl}" alt="Avatar" class="db-avatar">
+                        <span class="db-username">${u.username}</span>
+                    </div>
+                </td>
+                <td><span class="db-id">${u.id}</span></td>
+                <td><span class="db-balance">${u.balance} LSMC</span></td>
+                <td><span class="db-earned">${u.totalEarned} LSMC</span></td>
+                <td><span class="db-warns">${u.warnings}</span></td>
+                <td style="text-align: right;">
+                    <button class="btn-manage" onclick="openUserManage('${u.id}')">Управление</button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    };
+
+    const searchInput = document.getElementById('db-search');
+    if (searchInput) {
+        searchInput.addEventListener('input', (e) => {
+            const query = e.target.value.toLowerCase();
+            const filtered = allUsers.filter(u => 
+                u.username.toLowerCase().includes(query) || 
+                u.id.includes(query)
+            );
+            renderDbTable(filtered);
+        });
+    }
+
+    window.openUserManage = (userId) => {
+        const user = allUsers.find(u => u.id === userId);
+        if (!user) return;
+        
+        currentEditUser = user;
+        document.getElementById('manage-user-name').textContent = user.username;
+        document.getElementById('manage-warn-count').textContent = user.warnings;
+        document.getElementById('manage-amount').value = '';
+        
+        document.getElementById('user-manage-modal').style.display = 'flex';
+    };
+
+    const userModal = document.getElementById('user-manage-modal');
+    const closeUserModal = document.querySelector('.close-user-modal');
+    if (closeUserModal) {
+        closeUserModal.addEventListener('click', () => userModal.style.display = 'none');
+    }
+    window.addEventListener('click', (e) => {
+        if (e.target === userModal) userModal.style.display = 'none';
+    });
+
+    window.manageBalance = async (action) => {
+        if (!currentEditUser) return;
+        const amount = document.getElementById('manage-amount').value;
+        if (!amount || amount <= 0) return alert('Введите корректную сумму');
+
+        try {
+            const res = await fetch('/api/leader/users/balance', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId: currentEditUser.id, amount: amount, action: action })
+            });
+            const data = await res.json();
+            
+            if (data.success) {
+                alert(`Успешно! Новый баланс: ${data.newBalance} LSMC`);
+                currentEditUser.balance = data.newBalance;
+                if (action === 'add') currentEditUser.totalEarned += parseInt(amount);
+                
+                document.getElementById('manage-amount').value = '';
+                loadDatabase();
+            } else {
+                alert('Ошибка: ' + data.error);
+            }
+        } catch (e) {
+            alert('Ошибка сети');
+        }
+    };
+
+    window.manageWarn = async (action) => {
+        if (!currentEditUser) return;
+        
+        try {
+            const res = await fetch('/api/leader/users/warn', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId: currentEditUser.id, action: action })
+            });
+            const data = await res.json();
+            
+            if (data.success) {
+                currentEditUser.warnings = data.warnings;
+                document.getElementById('manage-warn-count').textContent = data.warnings;
+                loadDatabase();
+            } else {
+                alert('Ошибка: ' + data.error);
+            }
+        } catch (e) {
+            alert('Ошибка сети');
+        }
     };
 });
