@@ -987,7 +987,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (!tbody) return;
         
         try {
-            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:var(--text-muted);">Загрузка...</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:var(--text-muted);">Загрузка...</td></tr>';
             const res = await fetch('/api/leader/users');
             
             if (!res.ok) {
@@ -999,7 +999,7 @@ document.addEventListener("DOMContentLoaded", () => {
             renderDbTable(allUsers);
         } catch (e) {
             console.error(e);
-            tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:red; padding: 20px;">
+            tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:red; padding: 20px;">
                 <b>Ошибка загрузки:</b><br>${e.message}
             </td></tr>`;
         }
@@ -1010,7 +1010,7 @@ document.addEventListener("DOMContentLoaded", () => {
         tbody.innerHTML = '';
         
         if (users.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:var(--text-muted);">Сотрудники не найдены</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:var(--text-muted);">Сотрудники не найдены</td></tr>';
             return;
         }
 
@@ -1036,6 +1036,26 @@ document.addEventListener("DOMContentLoaded", () => {
                 else if (u.department.includes('PRD')) medalHtml = '<span style="margin-left: 5px; font-size: 16px;">🥉</span>';
             }
 
+            // Генерируем блок активности
+            const maxReportsForBar = 10; 
+            const weekPercent = Math.min((u.weekActivity / maxReportsForBar) * 100, 100);
+            
+            let barColor = 'var(--success)';
+            if (u.weekActivity === 0) barColor = 'rgba(255,255,255,0.1)';
+            else if (u.weekActivity < 3) barColor = 'var(--gold)';
+
+            const activityHtml = `
+                <div class="activity-wrapper" title="За месяц: ${u.monthActivity} отч.">
+                    <div class="activity-info">
+                        <span>${u.weekActivity} <small>отч. (нед)</small></span>
+                        <span style="color: var(--text-muted); font-size: 11px;">${u.monthActivity} <small>мес.</small></span>
+                    </div>
+                    <div class="activity-bar-bg">
+                        <div class="activity-bar-fill" style="width: ${weekPercent}%; background: ${barColor};"></div>
+                    </div>
+                </div>
+            `;
+
             tr.innerHTML = `
                 <td>
                     <div class="db-user-cell">
@@ -1049,7 +1069,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 </td>
                 <td><span class="db-balance">${u.balance} LSMC</span></td>
                 <td><span class="db-earned">${u.totalEarned} LSMC</span></td>
-                <td><span class="db-warns">${u.warnings}</span></td>
+                <td>${activityHtml}</td>
                 <td style="text-align: right;">
                     <button class="btn-manage" onclick="openUserManage('${u.id}')">Управление</button>
                 </td>

@@ -521,6 +521,10 @@ app.get('/api/leader/users', async (req, res) => {
         }));
     }
 
+    const now = new Date();
+    const startOfWeek = getStartOfWeek(now);
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+
     const users = discordMembers.map(member => {
         const userId = member.user.id;
         const dbUser = db.users[userId] || { balance: 0, totalEarned: 0, inventory: [], warnings: 0 };
@@ -584,6 +588,11 @@ app.get('/api/leader/users', async (req, res) => {
         if (member.user && member.user.avatar) avatarHash = member.user.avatar;
         else if (dbUser.avatar) avatarHash = dbUser.avatar;
 
+        // --- СЧИТАЕМ АКТИВНОСТЬ (ОТЧЕТЫ) ---
+        const userReports = db.reports.filter(r => r.userId === userId && r.status === 'approved');
+        const weekReports = userReports.filter(r => new Date(r.timestamp).getTime() >= startOfWeek).length;
+        const monthReports = userReports.filter(r => new Date(r.timestamp).getTime() >= startOfMonth).length;
+
         return {
             id: userId,
             username: displayName,
@@ -596,11 +605,12 @@ app.get('/api/leader/users', async (req, res) => {
             totalEarned: dbUser.totalEarned || 0,
             inventory: dbUser.inventory || [],
             warnings: dbUser.warnings || 0,
+            weekActivity: weekReports,
+            monthActivity: monthReports,
             isInDb: !!db.users[userId]
         };
     });
 
-    // Сортировка: Должность -> Отдел -> Баланс
     users.sort((a, b) => {
         if (b.rankWeight !== a.rankWeight) return b.rankWeight - a.rankWeight;
         if (b.deptWeight !== a.deptWeight) return b.deptWeight - a.deptWeight;
