@@ -1022,14 +1022,23 @@ document.addEventListener("DOMContentLoaded", () => {
                 avatarUrl = `https://cdn.discordapp.com/avatars/${u.id}/${u.avatar}.png`;
             }
 
+            let deptClass = 'db-dept--none';
+            if (u.department === 'PRD') deptClass = 'db-dept--prd';
+            else if (u.department === 'ОК') deptClass = 'db-dept--ok';
+            else if (u.department === 'SMPD') deptClass = 'db-dept--smpd';
+            else if (u.department === 'Руководство') deptClass = 'db-dept--lead';
+
             tr.innerHTML = `
                 <td>
                     <div class="db-user-cell">
                         <img src="${avatarUrl}" alt="Avatar" class="db-avatar">
-                        <span class="db-username">${u.username}</span>
+                        <div class="db-user-info">
+                            <span class="db-username">${u.username}</span>
+                            <span class="db-discord-tag">@${u.discordTag}</span>
+                            <span class="db-dept ${deptClass}">${u.department}</span>
+                        </div>
                     </div>
                 </td>
-                <td><span class="db-id">${u.id}</span></td>
                 <td><span class="db-balance">${u.balance} LSMC</span></td>
                 <td><span class="db-earned">${u.totalEarned} LSMC</span></td>
                 <td><span class="db-warns">${u.warnings}</span></td>

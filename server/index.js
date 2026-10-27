@@ -22,6 +22,11 @@ const HIGH_STAFF_ROLE_ID = '1564177985060212766'; // Старший состав
 const DEPUTY_ROLE_ID = '1564180732597895188';     // Зам лидера
 const LEADER_ROLE_ID = '1564180867079864460';     // Лидер
 
+// --- ID ОТДЕЛОВ ---
+const PRD_ROLE_ID = '1564597566912471121'; 
+const OK_ROLE_ID = '1564597995209760778';
+const SMPD_ROLE_ID = '1564598031498739834';
+
 // =========================================================
 // ⚠️ ТВОЙ РАБОЧИЙ ВЕБХУК (Вставлен во все формы)
 // =========================================================
@@ -514,8 +519,16 @@ app.get('/api/leader/users', async (req, res) => {
     const users = discordMembers.map(member => {
         const userId = member.user.id;
         const dbUser = db.users[userId] || { balance: 0, totalEarned: 0, inventory: [], warnings: 0 };
-        const displayName = member.nick || member.user.username || 'Неизвестный';
         
+        const displayName = member.nick || member.user.username || 'Неизвестный';
+        const usernameDiscord = member.user.username || 'unknown'; 
+        
+        let department = 'Не назначен';
+        if (member.roles.includes(PRD_ROLE_ID)) department = 'PRD';
+        else if (member.roles.includes(OK_ROLE_ID)) department = 'ОК';
+        else if (member.roles.includes(SMPD_ROLE_ID)) department = 'SMPD';
+        else if (member.roles.includes(LEADER_ROLE_ID) || member.roles.includes(DEPUTY_ROLE_ID)) department = 'Руководство';
+
         let avatarHash = null;
         if (member.user && member.user.avatar) avatarHash = member.user.avatar;
         else if (dbUser.avatar) avatarHash = dbUser.avatar;
@@ -523,6 +536,8 @@ app.get('/api/leader/users', async (req, res) => {
         return {
             id: userId,
             username: displayName,
+            discordTag: usernameDiscord, 
+            department: department,      
             avatar: avatarHash,
             balance: dbUser.balance || 0,
             totalEarned: dbUser.totalEarned || 0,
