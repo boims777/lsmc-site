@@ -211,6 +211,7 @@
                     <a href="#" class="staff-menu-link" data-sub="manage-shop" id="menu-manage-shop" style="display: none;">Управление магазином</a>
                     <a href="#" class="staff-menu-link" data-sub="orders" id="menu-orders" style="display: none;">Заказы (Лидер)</a>
                     <a href="#" class="staff-menu-link" data-sub="database" id="menu-database" style="display: none;">База сотрудников</a>
+                    <a href="#" class="staff-menu-link" data-sub="logs" id="menu-logs" style="display: none;">Логи действий</a>
                     
                     <button id="staff-logout-btn" class="btn btn--outline" style="width: 100%; margin-top: 30px;">Выйти</button>
                 </aside>
@@ -229,14 +230,12 @@
                             <h2 class="staff-title" style="margin-bottom: 5px;">Ваша статистика</h2>
                             <p style="color: var(--text-muted); font-size: 16px;">Добро пожаловать, <span id="stats-username" style="color: white; font-weight: 600;">Сотрудник</span>! Вот ваши результаты.</p>
                         </div>
-
                         <div class="stats-grid">
                             <div class="stat-card balance-card"><div class="stat-icon">💰</div><div class="stat-info"><span class="stat-label">Баланс</span><strong class="stat-value" id="stat-balance">0</strong><span class="stat-currency">LSMC</span></div></div>
                             <div class="stat-card earned-card"><div class="stat-icon">📈</div><div class="stat-info"><span class="stat-label">Всего заработано</span><strong class="stat-value" id="stat-earned">0</strong><span class="stat-currency">LSMC</span></div></div>
                             <div class="stat-card total-card"><div class="stat-icon">📝</div><div class="stat-info"><span class="stat-label">Отправлено отчетов</span><strong class="stat-value" id="stat-total">0</strong><span class="stat-currency">шт.</span></div></div>
                             <div class="stat-card approved-card"><div class="stat-icon">✅</div><div class="stat-info"><span class="stat-label">Одобрено</span><strong class="stat-value" id="stat-approved">0</strong><span class="stat-currency">шт.</span></div></div>
                         </div>
-
                         <div class="quick-actions-block">
                             <h3 class="quick-actions-title">Быстрые действия</h3>
                             <div class="quick-actions-grid">
@@ -292,14 +291,12 @@
                     <!-- Вкладка: Управление новостями (ЛИДЕР) -->
                     <div class="staff-sub-section" id="sub-manage-news">
                         <h2 class="staff-title">Управление новостями</h2>
-                        
                         <div class="form-container" style="margin-bottom: 30px; max-width: 100%; background: rgba(0,0,0,0.2);">
                             <h3>Добавить новость</h3>
                             <form id="add-news-form">
                                 <div class="form-group"><label>Заголовок</label><input type="text" id="news-title" placeholder="Например: Открыт набор в интернатуру" required></div>
                                 <div class="form-group"><label>Текст новости</label><textarea id="news-text" rows="4" placeholder="Текст новости..." required></textarea></div>
                                 <div class="form-group"><label>Тег (категория)</label><input type="text" id="news-tag" placeholder="Например: Важно, Обновление" required></div>
-                                
                                 <div class="form-group">
                                     <label>Обложка новости (картинка)</label>
                                     <div class="file-upload-zone" id="news-file-zone">
@@ -308,11 +305,9 @@
                                         <div class="preview-container" id="news-preview-container"></div>
                                     </div>
                                 </div>
-
                                 <button type="submit" class="btn btn--success" style="width: 100%;">Опубликовать</button>
                             </form>
                         </div>
-
                         <h3>Опубликованные новости</h3>
                         <div id="manage-news-list"></div>
                     </div>
@@ -343,11 +338,9 @@
                     <div class="staff-sub-section" id="sub-database">
                         <h2 class="staff-title">База данных сотрудников</h2>
                         <p style="color: var(--text-muted); margin-bottom: 20px;">Управление балансом и дисциплиной всех зарегистрированных сотрудников.</p>
-                        
                         <div class="db-controls">
                             <input type="text" id="db-search" class="db-search-input" placeholder="🔍 Поиск по имени или ID...">
                         </div>
-
                         <div class="db-table-container">
                             <table class="db-table">
                                 <thead>
@@ -359,11 +352,16 @@
                                         <th style="text-align: right;">Действия</th>
                                     </tr>
                                 </thead>
-                                <tbody id="db-table-body">
-                                    <!-- Сюда будут загружаться строки -->
-                                </tbody>
+                                <tbody id="db-table-body"></tbody>
                             </table>
                         </div>
+                    </div>
+
+                    <!-- Вкладка: Логи действий (Лидер) -->
+                    <div class="staff-sub-section" id="sub-logs">
+                        <h2 class="staff-title">История действий</h2>
+                        <p style="color: var(--text-muted); margin-bottom: 20px;">Здесь отображаются последние действия руководства и изменения в системе.</p>
+                        <div id="logs-container" class="logs-list"></div>
                     </div>
 
                     <!-- Модальное окно для управления пользователем -->
@@ -373,6 +371,16 @@
                             <h2 id="manage-user-name" style="margin-bottom: 20px; text-align: center;">Управление</h2>
                             
                             <div style="display: flex; flex-direction: column; gap: 20px;">
+                                <!-- НОВЫЙ БЛОК: CID -->
+                                <div style="background: rgba(0,0,0,0.2); padding: 15px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">
+                                    <h4 style="margin-bottom: 10px; color: var(--text-main); font-size: 16px;">🆔 CID Персонажа</h4>
+                                    <div style="display: flex; gap: 10px; align-items: center;">
+                                        <input type="text" id="manage-cid" placeholder="Например: D2LA" style="flex: 1; padding: 10px; border-radius: 8px; border: 1px solid var(--border-glass); background: rgba(0,0,0,0.4); color: white; text-transform: uppercase;">
+                                        <button class="btn btn--primary" onclick="manageCid()" style="padding: 10px 15px; font-size: 13px;">Сохранить</button>
+                                    </div>
+                                </div>
+
+                                <!-- Блок Валюта -->
                                 <div style="background: rgba(0,0,0,0.2); padding: 15px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">
                                     <h4 style="margin-bottom: 10px; color: var(--text-main); font-size: 16px;">💰 Валюта</h4>
                                     <div style="display: flex; gap: 10px; align-items: center;">
@@ -382,6 +390,7 @@
                                     </div>
                                 </div>
 
+                                <!-- Блок Варны -->
                                 <div style="background: rgba(0,0,0,0.2); padding: 15px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">
                                     <h4 style="margin-bottom: 10px; color: var(--text-main); font-size: 16px;">⚠️ Предупреждения (Варны)</h4>
                                     <div style="display: flex; gap: 10px; align-items: center;">
@@ -407,6 +416,18 @@
             <p>Сайт не является официальным ресурсом Rockstar Games, также сервера RADMIR.</p>
         </div>
     </footer>
+
+    <!-- МОДАЛЬНОЕ ОКНО ДЛЯ ВВОДА CID (при первом входе) -->
+    <div id="cid-modal" class="cart-modal" style="display: none;">
+        <div class="cart-modal-content" style="max-width: 400px; border-color: var(--gold);">
+            <h2 style="color: var(--gold);">Введите ваш CID</h2>
+            <p style="color: var(--text-muted); margin-bottom: 20px; text-align: center;">Это обязательное поле. Вводится один раз. Если ошиблись — обратитесь к Лидеру.</p>
+            <div class="form-group">
+                <input type="text" id="cid-input" placeholder="Например: D2LA" style="width: 100%; padding: 15px; border-radius: 12px; background: rgba(0,0,0,0.4); border: 1px solid var(--border-glass); color: white; margin-bottom: 20px; text-transform: uppercase;">
+            </div>
+            <button class="btn btn--primary" id="save-cid-btn" style="width: 100%;">Сохранить</button>
+        </div>
+    </div>
 
     <!-- МОДАЛЬНОЕ ОКНО НОВОСТЕЙ -->
     <div id="news-modal" class="cart-modal" style="display: none;">

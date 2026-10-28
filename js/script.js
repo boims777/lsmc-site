@@ -5,6 +5,7 @@ document.addEventListener("DOMContentLoaded", () => {
     let currentUser = null;
     let cart = [];
     let shopItems = [];
+    let allReportsCache = [];
 
     // --- ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ДЛЯ ДАТ ---
     const getFormattedDate = () => {
@@ -20,13 +21,7 @@ document.addEventListener("DOMContentLoaded", () => {
         monday.setDate(now.getDate() + diffToMonday);
         const sunday = new Date(monday);
         sunday.setDate(monday.getDate() + 6);
-
-        const format = (d) => {
-            const day = String(d.getDate()).padStart(2, '0');
-            const month = String(d.getMonth() + 1).padStart(2, '0');
-            const year = d.getFullYear();
-            return `${day}.${month}.${year}`;
-        };
+        const format = (d) => `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}.${d.getFullYear()}`;
         return `${format(monday)} - ${format(sunday)}`;
     };
 
@@ -35,51 +30,35 @@ document.addEventListener("DOMContentLoaded", () => {
     if(document.getElementById('rep-date')) document.getElementById('rep-date').value = getFormattedDate();
     if(document.getElementById('rep-week')) document.getElementById('rep-week').value = getWeekRange();
 
-    // --- МОДАЛЬНОЕ ОКНО НОВОСТЕЙ ---
+    // --- МОДАЛЬНЫЕ ОКНА ---
     const newsModal = document.getElementById('news-modal');
     const closeNewsModal = document.querySelector('.close-news-modal');
-    
     window.openNews = (title, text, tag, date, imageUrl) => {
         document.getElementById('news-modal-title').textContent = title;
         document.getElementById('news-modal-text').innerHTML = text.replace(/\n/g, '<br>');
         document.getElementById('news-modal-tag').textContent = tag;
         document.getElementById('news-modal-date').textContent = date;
-        
         const imgElement = document.getElementById('news-modal-image');
         if (imgElement) {
-            if (imageUrl) {
-                imgElement.src = imageUrl;
-                imgElement.style.display = 'block';
-            } else {
-                imgElement.style.display = 'none';
-            }
+            if (imageUrl) { imgElement.src = imageUrl; imgElement.style.display = 'block'; }
+            else imgElement.style.display = 'none';
         }
-        
         newsModal.style.display = 'flex';
     };
+    if (closeNewsModal) closeNewsModal.addEventListener('click', () => newsModal.style.display = 'none');
+    window.addEventListener('click', (e) => { if (e.target === newsModal) newsModal.style.display = 'none'; });
 
-    if (closeNewsModal) {
-        closeNewsModal.addEventListener('click', () => newsModal.style.display = 'none');
-    }
-    window.addEventListener('click', (e) => {
-        if (e.target === newsModal) newsModal.style.display = 'none';
-    });
-
-    // --- МОДАЛЬНОЕ ОКНО ДЛЯ СКРИНШОТОВ ---
     const screenshotModal = document.getElementById('screenshot-modal');
     const screenshotContainer = document.getElementById('screenshot-container');
     const closeScreenshotModal = document.querySelector('.close-screenshot-modal');
     const screenshotModalTitle = document.getElementById('screenshot-modal-title');
-
+    
     window.openScreenshots = (reportId, titleText) => {
-        const report = window.allReportsData ? window.allReportsData.find(r => r.id === reportId) : null;
-        if (!report || !report.images || report.images.length === 0) {
-            return alert('К этому отчету нет скриншотов.');
-        }
-
-        screenshotModalTitle.textContent = titleText || 'Скриншоты отчета';
-        screenshotContainer.innerHTML = '';
+        const report = allReportsCache.find(r => r.id === reportId) || (window.allReportsData ? window.allReportsData.find(r => r.id === reportId) : null);
+        if (!report || !report.images || report.images.length === 0) return alert('Нет скриншотов или отчет не найден.');
         
+        screenshotModalTitle.textContent = titleText || 'Скриншоты';
+        screenshotContainer.innerHTML = '';
         report.images.forEach((imgBase64, index) => {
             const img = document.createElement('img');
             img.src = imgBase64;
@@ -89,42 +68,23 @@ document.addEventListener("DOMContentLoaded", () => {
             img.alt = `Скриншот ${index + 1}`;
             screenshotContainer.appendChild(img);
         });
-
         screenshotModal.style.display = 'flex';
     };
-
-    if (closeScreenshotModal) {
-        closeScreenshotModal.addEventListener('click', () => {
-            screenshotModal.style.display = 'none';
-        });
-    }
-
-    window.addEventListener('click', (e) => {
-        if (e.target === screenshotModal) screenshotModal.style.display = 'none';
-    });
+    if (closeScreenshotModal) closeScreenshotModal.addEventListener('click', () => screenshotModal.style.display = 'none');
+    window.addEventListener('click', (e) => { if (e.target === screenshotModal) screenshotModal.style.display = 'none'; });
 
     // --- ПЕРЕКЛЮЧЕНИЕ ВКЛАДОК ---
     const switchTab = (targetId) => {
         sections.forEach(section => section.classList.remove("active"));
         const targetSection = document.getElementById(targetId);
         if (targetSection) targetSection.classList.add("active");
-
         navLinks.forEach(link => {
-            if (link.getAttribute("data-target") === targetId) {
-                link.classList.add("active");
-            } else {
-                link.classList.remove("active");
-            }
+            if (link.getAttribute("data-target") === targetId) link.classList.add("active");
+            else link.classList.remove("active");
         });
         window.scrollTo(0, 0);
-        
-        if(targetId === 'staff-area') {
-            loadStats();
-            switchStaffSub('stats');
-        }
-        if(targetId === 'news') {
-            loadNews();
-        }
+        if(targetId === 'staff-area') { loadStats(); switchStaffSub('stats'); }
+        if(targetId === 'news') loadNews();
     };
 
     navLinks.forEach(link => {
@@ -148,50 +108,42 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if(userProfile) {
         userProfile.addEventListener('click', () => {
-            if(currentUser && currentUser.isStaff) {
-                switchTab('staff-area');
-            } else {
-                alert('У вас нет доступа к личному кабинету. Обратитесь к руководству LSMC для получения роли.');
-            }
+            if(currentUser && currentUser.isStaff) switchTab('staff-area');
+            else alert('Нет доступа.');
         });
     }
 
-    fetch('/api/me')
-        .then(response => response.json())
-        .then(data => {
-            currentUser = data;
-            if (data.username) {
-                if(loginBtn) loginBtn.style.display = 'none';
-                if(userProfile) userProfile.style.display = 'flex';
-                if(userName) userName.textContent = data.username;
-                
-                if(data.avatar) userAvatar.src = `https://cdn.discordapp.com/avatars/${data.id}/${data.avatar}.png`;
-                else userAvatar.src = `https://cdn.discordapp.com/embed/avatars/0.png`;
-
-                if (data.isStaff) {
-                    userBalanceWrapper.style.display = 'flex';
-                    userBalanceVal.textContent = data.balance;
-                    cartIcon.style.display = 'block';
-                    
-                    if(data.isHighStaff) {
-                        document.getElementById('menu-reviews').style.display = 'block';
-                    }
-                    if(data.isLeader) {
-                        document.getElementById('menu-manage-news').style.display = 'block';
-                        document.getElementById('menu-manage-shop').style.display = 'block';
-                        document.getElementById('menu-orders').style.display = 'block';
-                        document.getElementById('menu-database').style.display = 'block';
-                    }
+    fetch('/api/me').then(r => r.json()).then(data => {
+        currentUser = data;
+        if (data.username) {
+            if(loginBtn) loginBtn.style.display = 'none';
+            if(userProfile) userProfile.style.display = 'flex';
+            if(userName) userName.textContent = data.username;
+            if(data.avatar) userAvatar.src = `https://cdn.discordapp.com/avatars/${data.id}/${data.avatar}.png`;
+            else userAvatar.src = `https://cdn.discordapp.com/embed/avatars/0.png`;
+            
+            if (data.isStaff) {
+                userBalanceWrapper.style.display = 'flex';
+                userBalanceVal.textContent = data.balance;
+                cartIcon.style.display = 'block';
+                if(data.isHighStaff) document.getElementById('menu-reviews').style.display = 'block';
+                if(data.isLeader) {
+                    document.getElementById('menu-manage-news').style.display = 'block';
+                    document.getElementById('menu-manage-shop').style.display = 'block';
+                    document.getElementById('menu-orders').style.display = 'block';
+                    document.getElementById('menu-database').style.display = 'block';
+                    document.getElementById('menu-logs').style.display = 'block';
                 }
             }
-        });
 
-    if(logoutBtn) {
-        logoutBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            fetch('/api/logout').then(() => window.location.reload());
-        });
-    }
+            // Если нужен CID — показываем модалку
+            if (data.needsCid) {
+                document.getElementById('cid-modal').style.display = 'flex';
+            }
+        }
+    });
+
+    if(logoutBtn) logoutBtn.addEventListener('click', (e) => { e.stopPropagation(); fetch('/api/logout').then(() => window.location.reload()); });
 
     // --- КОРЗИНА ---
     const cartModal = document.getElementById('cart-modal');
@@ -200,23 +152,11 @@ document.addEventListener("DOMContentLoaded", () => {
     const closeModal = document.querySelector('.close-modal');
     const checkoutBtn = document.getElementById('checkout-btn');
 
-    cartIcon.addEventListener('click', () => {
-        renderCart();
-        cartModal.style.display = 'flex';
-    });
+    cartIcon.addEventListener('click', () => { renderCart(); cartModal.style.display = 'flex'; });
+    closeModal.addEventListener('click', () => cartModal.style.display = 'none');
+    window.addEventListener('click', (e) => { if (e.target === cartModal) cartModal.style.display = 'none'; });
 
-    closeModal.addEventListener('click', () => {
-        cartModal.style.display = 'none';
-    });
-
-    window.addEventListener('click', (e) => {
-        if (e.target === cartModal) cartModal.style.display = 'none';
-    });
-
-    const updateCartCount = () => {
-        cartCount.textContent = cart.length;
-    };
-
+    const updateCartCount = () => { cartCount.textContent = cart.length; };
     const renderCart = () => {
         cartItemsList.innerHTML = '';
         let total = 0;
@@ -224,87 +164,54 @@ document.addEventListener("DOMContentLoaded", () => {
             total += item.price;
             const div = document.createElement('div');
             div.className = 'cart-item-row';
-            div.innerHTML = `
-                <span class="item-name">${item.name}</span>
-                <span class="item-price">${item.price} LSMC</span>
-                <button class="remove-item" onclick="removeFromCart(${index})">✖</button>
-            `;
+            div.innerHTML = `<span class="item-name">${item.name}</span><span class="item-price">${item.price} LSMC</span><button class="remove-item" onclick="removeFromCart(${index})">✖</button>`;
             cartItemsList.appendChild(div);
         });
         cartTotalPrice.textContent = total;
     };
 
-    window.removeFromCart = (index) => {
-        cart.splice(index, 1);
-        updateCartCount();
-        renderCart();
-    };
-
+    window.removeFromCart = (index) => { cart.splice(index, 1); updateCartCount(); renderCart(); };
     window.addToCart = (itemId) => {
-        if (!currentUser || !currentUser.isStaff) return alert('Войдите как сотрудник!');
+        if (!currentUser || !currentUser.isStaff) return alert('Войдите!');
         const item = shopItems.find(i => i.id === itemId);
         if (!item) return;
         cart.push(item);
         updateCartCount();
-        alert(`Товар "${item.name}" добавлен в корзину!`);
+        alert(`Товар "${item.name}" добавлен!`);
         if (cartModal.style.display === 'flex') renderCart();
     };
 
-    // --- ЗАГРУЗКА МАГАЗИНА ---
     const loadShop = async () => {
         const container = document.getElementById('shop-items-container');
         try {
-            const res = await fetch('/api/staff/shop');
-            shopItems = await res.json();
+            shopItems = await (await fetch('/api/staff/shop')).json();
             container.innerHTML = '';
             shopItems.forEach(item => {
                 const div = document.createElement('div');
                 div.className = 'shop-item';
-                div.innerHTML = `
-                    <span class="shop-item__icon">${item.icon}</span>
-                    <h4>${item.name}</h4>
-                    <p>${item.desc}</p>
-                    <div class="shop-item__price">${item.price} LSMC</div>
-                    <button class="btn btn--success" onclick="addToCart('${item.id}')" style="width: 100%;">В корзину</button>
-                `;
+                div.innerHTML = `<span class="shop-item__icon">${item.icon}</span><h4>${item.name}</h4><p>${item.desc}</p><div class="shop-item__price">${item.price} LSMC</div><button class="btn btn--success" onclick="addToCart('${item.id}')" style="width: 100%;">В корзину</button>`;
                 container.appendChild(div);
             });
         } catch (e) { console.error(e); }
     };
 
-    // --- ОФОРМЛЕНИЕ ЗАКАЗА ---
     checkoutBtn.addEventListener('click', async () => {
         if (cart.length === 0) return alert('Корзина пуста!');
-        if (!currentUser || !currentUser.isStaff) return alert('Авторизуйтесь!');
-
-        const total = cart.reduce((sum, item) => sum + item.price, 0);
-        if (currentUser.balance < total) return alert('Недостаточно средств на балансе!');
-
-        if (!confirm(`Оформить заказ на сумму ${total} LSMC?`)) return;
-
+        if (currentUser.balance < cart.reduce((s, i) => s + i.price, 0)) return alert('Нет средств!');
+        if (!confirm(`Оформить заказ на ${cart.reduce((s, i) => s + i.price, 0)} LSMC?`)) return;
         try {
-            const res = await fetch('/api/staff/checkout', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ items: cart })
-            });
+            const res = await fetch('/api/staff/checkout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ items: cart }) });
             const data = await res.json();
             if (data.success) {
-                alert('Заказ успешно оформлен! Ожидайте выдачи.');
-                cart = [];
-                updateCartCount();
-                cartModal.style.display = 'none';
+                alert('Заказ оформлен!');
+                cart = []; updateCartCount(); cartModal.style.display = 'none';
                 currentUser.balance = data.newBalance;
                 userBalanceVal.textContent = data.newBalance;
-            } else {
-                alert('Ошибка: ' + (data.error || 'Неизвестная'));
-            }
-        } catch (e) {
-            alert('Ошибка сети');
-        }
+            } else alert('Ошибка: ' + data.error);
+        } catch (e) { alert('Ошибка сети'); }
     });
 
-    // --- ПЕРЕКЛЮЧЕНИЕ ПОДРАЗДЕЛОВ СОТРУДНИКА ---
+    // --- ПОДРАЗДЕЛЫ ---
     const staffSubSections = document.querySelectorAll(".staff-sub-section");
     const staffMenuLinks = document.querySelectorAll(".staff-menu-link");
 
@@ -312,13 +219,9 @@ document.addEventListener("DOMContentLoaded", () => {
         staffSubSections.forEach(sec => sec.classList.remove("active"));
         const targetSub = document.getElementById(`sub-${subId}`);
         if (targetSub) targetSub.classList.add("active");
-
         staffMenuLinks.forEach(link => {
-            if (link.getAttribute("data-sub") === subId) {
-                link.classList.add("active");
-            } else {
-                link.classList.remove("active");
-            }
+            if (link.getAttribute("data-sub") === subId) link.classList.add("active");
+            else link.classList.remove("active");
         });
 
         if (subId === 'stats') loadStats();
@@ -331,6 +234,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (subId === 'my-orders') loadMyOrders();
         if (subId === 'manage-news') loadManageNews();
         if (subId === 'database') loadDatabase();
+        if (subId === 'logs') loadLogs();
     };
 
     staffMenuLinks.forEach(link => {
@@ -344,19 +248,15 @@ document.addEventListener("DOMContentLoaded", () => {
     // --- СТАТИСТИКА ---
     const loadStats = async () => {
         try {
-            const res = await fetch('/api/staff/stats');
-            const data = await res.json();
-            
+            const data = await (await fetch('/api/staff/stats')).json();
             if (currentUser && currentUser.username) {
-                const statsUsername = document.getElementById('stats-username');
-                if (statsUsername) statsUsername.textContent = currentUser.username;
+                const el = document.getElementById('stats-username');
+                if (el) el.textContent = currentUser.username;
             }
-
             if (currentUser && currentUser.isHighStaff) {
-                const reviewBtn = document.getElementById('qa-review-btn');
-                if (reviewBtn) reviewBtn.style.display = 'flex';
+                const btn = document.getElementById('qa-review-btn');
+                if (btn) btn.style.display = 'flex';
             }
-
             const animateValue = (id, endValue, duration = 1000) => {
                 const obj = document.getElementById(id);
                 if (!obj) return;
@@ -364,115 +264,66 @@ document.addEventListener("DOMContentLoaded", () => {
                 const step = (timestamp) => {
                     if (!startTimestamp) startTimestamp = timestamp;
                     const progress = Math.min((timestamp - startTimestamp) / duration, 1);
-                    const easeOutQuart = 1 - Math.pow(1 - progress, 4);
-                    obj.textContent = Math.floor(easeOutQuart * endValue);
-                    if (progress < 1) {
-                        window.requestAnimationFrame(step);
-                    } else {
-                        obj.textContent = endValue;
-                    }
+                    obj.textContent = Math.floor((1 - Math.pow(1 - progress, 4)) * endValue);
+                    if (progress < 1) window.requestAnimationFrame(step);
+                    else obj.textContent = endValue;
                 };
                 window.requestAnimationFrame(step);
             };
-
             animateValue('stat-balance', data.balance);
             animateValue('stat-earned', data.totalEarned);
             animateValue('stat-total', data.totalReports);
             animateValue('stat-approved', data.approvedReports);
-
-        } catch(e) { 
-            console.error('Ошибка загрузки статистики:', e); 
-        }
+        } catch(e) { console.error(e); }
     };
 
     // --- ДОСКА ПОЧЕТА ---
     const loadLeaderboard = async () => {
         const container = document.getElementById('leaderboard-list');
         try {
-            const res = await fetch('/api/staff/leaderboard');
-            const data = await res.json();
-            
+            const data = await (await fetch('/api/staff/leaderboard')).json();
             container.innerHTML = '';
-            if(data.length === 0) {
-                container.innerHTML = '<p style="color:var(--text-muted); text-align:center; width:100%;">Пока нет одобренных отчетов на этой неделе.</p>';
-                return;
-            }
-
+            if(data.length === 0) { container.innerHTML = '<p style="color:var(--text-muted); text-align:center;">Пусто.</p>'; return; }
+            const podium = document.createElement('div');
+            podium.className = 'podium-container';
             const places = [];
-            if(data[1]) places.push({ ...data[1], class: 'second' });
-            if(data[0]) places.push({ ...data[0], class: 'first' });
-            if(data[2]) places.push({ ...data[2], class: 'third' });
-
+            if (data[1]) places.push({ ...data[1], place: 2 }); 
+            if (data[0]) places.push({ ...data[0], place: 1 }); 
+            if (data[2]) places.push({ ...data[2], place: 3 }); 
             places.forEach(p => {
                 const div = document.createElement('div');
-                div.className = `podium-place ${p.class}`;
-                
-                let avatarUrl = 'https://cdn.discordapp.com/embed/avatars/0.png';
-                if (p.avatar) {
-                    avatarUrl = `https://cdn.discordapp.com/avatars/${p.userId}/${p.avatar}.png`;
-                }
-
-                div.innerHTML = `
-                    <img src="${avatarUrl}" alt="${p.username}" class="podium-avatar">
-                    <span class="podium-name">${p.username}</span>
-                    <span class="podium-score">${p.count} отчетов</span>
-                    <span class="rank-icon">${p.class === 'first' ? '🥇' : p.class === 'second' ? '🥈' : '🥉'}</span>
-                `;
-                container.appendChild(div);
+                div.className = `podium-place place-${p.place}`;
+                const avatarUrl = p.avatar ? `https://cdn.discordapp.com/avatars/${p.userId}/${p.avatar}.png` : 'https://cdn.discordapp.com/embed/avatars/0.png';
+                const medal = p.place === 1 ? '🥇' : p.place === 2 ? '🥈' : '🥉';
+                const title = p.place === 1 ? '1 место' : p.place === 2 ? '2 место' : '3 место';
+                div.innerHTML = `<div class="podium-avatar-wrapper"><img src="${avatarUrl}" class="podium-avatar"></div><div class="podium-medal">${medal}</div><div class="podium-info"><span class="podium-name">${p.username}</span><span class="podium-count">${p.count} отчетов</span><span class="podium-title">${title}</span></div>`;
+                podium.appendChild(div);
             });
+            container.appendChild(podium);
         } catch(e) { console.error(e); }
     };
 
-    // =========================================================================
-    // --- УЛУЧШЕННАЯ ЗАГРУЗКА ФАЙЛОВ (Ctrl+V + Drag & Drop + Click) ---
-    // =========================================================================
+    // --- ЗАГРУЗКА ФАЙЛОВ ---
     const setupUpload = (zoneId, inputId, previewId) => {
-        const zone = document.getElementById(zoneId);
-        const input = document.getElementById(inputId);
-        const preview = document.getElementById(previewId);
+        const zone = document.getElementById(zoneId), input = document.getElementById(inputId), preview = document.getElementById(previewId);
         let files = [];
-
         if(!zone || !input || !preview) return { get: () => [], clear: () => {} };
-
-        zone.addEventListener('click', (e) => { 
-            if (e.target.tagName !== 'BUTTON' && !e.target.classList.contains('remove-preview')) {
-                input.click(); 
-            }
-        });
-
+        zone.addEventListener('click', (e) => { if (e.target.tagName !== 'BUTTON' && !e.target.classList.contains('remove-preview')) input.click(); });
         input.addEventListener('change', (e) => handleFiles(e.target.files));
-
         zone.addEventListener('dragover', (e) => { e.preventDefault(); zone.classList.add('dragover'); });
         zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
-        zone.addEventListener('drop', (e) => { 
-            e.preventDefault(); 
-            zone.classList.remove('dragover'); 
-            handleFiles(e.dataTransfer.files); 
-        });
-
+        zone.addEventListener('drop', (e) => { e.preventDefault(); zone.classList.remove('dragover'); handleFiles(e.dataTransfer.files); });
         document.addEventListener('paste', (e) => {
             if (zone.offsetParent === null) return;
-            
             const items = e.clipboardData.items;
             let pasted = [];
-            for (let item of items) {
-                if (item.type.indexOf('image') !== -1) {
-                    pasted.push(item.getAsFile());
-                }
-            }
-            if(pasted.length > 0) {
-                e.preventDefault();
-                handleFiles(pasted);
-            }
+            for (let item of items) if (item.type.indexOf('image') !== -1) pasted.push(item.getAsFile());
+            if(pasted.length > 0) { e.preventDefault(); handleFiles(pasted); }
         });
-
         function handleFiles(newFiles) {
             Array.from(newFiles).forEach(file => {
                 if (file.type.startsWith('image/')) {
-                    if (files.length >= 5) {
-                        alert('Максимальное количество скриншотов — 5.');
-                        return;
-                    }
+                    if (files.length >= 5) return alert('Максимум 5 скриншотов.');
                     files.push(file);
                     const reader = new FileReader();
                     reader.onload = (e) => {
@@ -480,18 +331,12 @@ document.addEventListener("DOMContentLoaded", () => {
                         div.className = 'preview-item';
                         div.innerHTML = `<img src="${e.target.result}"><button type="button" class="remove-preview">✖</button>`;
                         preview.appendChild(div);
-                        
-                        div.querySelector('.remove-preview').onclick = (ev) => {
-                            ev.stopPropagation();
-                            files = files.filter(f => f !== file);
-                            div.remove();
-                        };
+                        div.querySelector('.remove-preview').onclick = (ev) => { ev.stopPropagation(); files = files.filter(f => f !== file); div.remove(); };
                     };
                     reader.readAsDataURL(file);
                 }
             });
         }
-
         return { get: () => files, clear: () => { files = []; preview.innerHTML = ''; } };
     };
 
@@ -504,42 +349,24 @@ document.addEventListener("DOMContentLoaded", () => {
     const submitForm = (formId, apiUrl, getData, upload) => {
         const form = document.getElementById(formId);
         if (!form) return;
-
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
-            if (!currentUser || !currentUser.username) return alert('Авторизуйтесь!');
-            
+            if (!currentUser || !currentUser.username) return alert('Войдите!');
             const files = upload.get();
-            if (files.length === 0 && formId !== 'add-news-form') return alert('Прикрепите скриншоты!');
-            if (files.length > 5) return alert('Максимум 5 скриншотов!');
-
-            if (!confirm('Вы уверены, что хотите отправить эту форму?')) return;
-
+            if (files.length === 0 && formId !== 'add-news-form') return alert('Нужны скриншоты!');
+            if (!confirm('Отправить?')) return;
             const data = getData();
-            data.discord_user = currentUser.username;
-
             if (formId === 'job-form') data.date = getFormattedDate();
             if (formId === 'complaint-form') data.date = getFormattedDate();
-            if (formId === 'report-form') {
-                data.date = getFormattedDate();
-                data.week = getWeekRange();
-            }
-
+            if (formId === 'report-form') { data.date = getFormattedDate(); data.week = getWeekRange(); }
             if (formId === 'add-news-form') {
                 if (files.length > 0) {
                     const reader = new FileReader();
-                    reader.onload = (e) => {
-                        data.image = e.target.result;
-                        sendData(apiUrl, data, form, upload);
-                    };
+                    reader.onload = (e) => { data.image = e.target.result; sendData(apiUrl, data, form, upload); };
                     reader.readAsDataURL(files[0]);
-                } else {
-                    data.image = null;
-                    sendData(apiUrl, data, form, upload);
-                }
+                } else { data.image = null; sendData(apiUrl, data, form, upload); }
                 return;
             }
-
             const base64Images = [];
             let processed = 0;
             files.forEach(file => {
@@ -547,10 +374,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 reader.onload = (e) => {
                     base64Images.push(e.target.result);
                     processed++;
-                    if (processed === files.length) {
-                        data.images = base64Images;
-                        sendData(apiUrl, data, form, upload);
-                    }
+                    if (processed === files.length) { data.images = base64Images; sendData(apiUrl, data, form, upload); }
                 };
                 reader.readAsDataURL(file);
             });
@@ -559,126 +383,52 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const sendData = async (url, data, form, upload) => {
         try {
-            const res = await fetch(url, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data)
-            });
-            const result = await res.json();
+            const result = await (await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })).json();
             if (result.success) {
                 alert('Успешно!');
-                form.reset();
-                upload.clear();
+                form.reset(); upload.clear();
                 if(document.getElementById('job-date')) document.getElementById('job-date').value = getFormattedDate();
                 if(document.getElementById('comp-date')) document.getElementById('comp-date').value = getFormattedDate();
                 if(document.getElementById('rep-date')) document.getElementById('rep-date').value = getFormattedDate();
                 if(document.getElementById('rep-week')) document.getElementById('rep-week').value = getWeekRange();
-                
                 if (url === '/api/staff/report') switchStaffSub('stats');
-                if (url === '/api/leader/news/add') {
-                    loadManageNews();
-                    document.getElementById('news-preview-container').innerHTML = '';
-                }
-            } else {
-                alert('Ошибка: ' + (result.error || 'Неизвестная'));
-            }
-        } catch (err) {
-            alert('Ошибка сети');
-        }
+                if (url === '/api/leader/news/add') { loadManageNews(); document.getElementById('news-preview-container').innerHTML = ''; }
+            } else alert('Ошибка: ' + result.error);
+        } catch (err) { alert('Ошибка сети'); }
     };
 
-    submitForm('job-form', '/api/apply', () => ({
-        name: document.getElementById('name').value,
-        discord: document.getElementById('discord').value,
-        static: document.getElementById('static').value,
-        about: document.getElementById('about').value,
-    }), jobUpload);
-
-    submitForm('complaint-form', '/api/complaint', () => ({
-        compName: document.getElementById('comp-name').value,
-        compTarget: document.getElementById('comp-target').value,
-        compReason: document.getElementById('comp-reason').value,
-    }), compUpload);
-
-    submitForm('report-form', '/api/staff/report', () => ({
-        type: document.getElementById('rep-type').value,
-        text: document.getElementById('rep-text').value,
-    }), repUpload);
+    submitForm('job-form', '/api/apply', () => ({ name: document.getElementById('name').value, discord: document.getElementById('discord').value, static: document.getElementById('static').value, about: document.getElementById('about').value }), jobUpload);
+    submitForm('complaint-form', '/api/complaint', () => ({ compName: document.getElementById('comp-name').value, compTarget: document.getElementById('comp-target').value, compReason: document.getElementById('comp-reason').value }), compUpload);
+    submitForm('report-form', '/api/staff/report', () => ({ type: document.getElementById('rep-type').value, text: document.getElementById('rep-text').value }), repUpload);
 
     // --- НОВОСТИ ---
     const loadNews = async () => {
         const container = document.getElementById('news-grid');
         try {
-            const res = await fetch('/api/news');
-            let news = await res.json();
-            
+            let news = await (await fetch('/api/news')).json();
             news.sort((a, b) => b.id - a.id);
-
             container.innerHTML = '';
-            
-            if(news.length === 0) {
-                container.innerHTML = '<p style="color:var(--text-muted); text-align:center; width:100%; padding: 40px;">Пока нет новостей.</p>';
-                return;
-            }
-            
+            if(news.length === 0) { container.innerHTML = '<p style="color:var(--text-muted); text-align:center; width:100%;">Нет новостей.</p>'; return; }
             news.forEach((item, index) => {
                 const div = document.createElement('div');
                 div.className = 'news-card';
                 div.onclick = () => window.openNews(item.title, item.text, item.tag, item.date, item.image);
-                
-                const imageSrc = item.image ? item.image : 'img/hospital.jpg'; 
-
-                div.innerHTML = `
-                    <div class="news-card-image">
-                        <img src="${imageSrc}" alt="Cover">
-                    </div>
-                    <div class="news-content">
-                        <span class="news-tag">${item.tag}</span>
-                        <h3 class="news-title">${item.title}</h3>
-                        <p class="news-excerpt">${item.text}</p>
-                        <div class="news-footer">
-                            <span class="news-date">${item.date}</span>
-                            <span style="color: var(--accent); font-weight: 600;">Читать →</span>
-                        </div>
-                    </div>
-                `;
+                div.innerHTML = `<div class="news-card-image"><img src="${item.image || 'img/hospital.jpg'}"></div><div class="news-content"><span class="news-tag">${item.tag}</span><h3 class="news-title">${item.title}</h3><p class="news-excerpt">${item.text}</p><div class="news-footer"><span class="news-date">${item.date}</span><span style="color: var(--accent); font-weight: 600;">Читать →</span></div></div>`;
                 container.appendChild(div);
-
-                if (typeof gsap !== 'undefined') {
-                    gsap.from(div, {
-                        y: 30,
-                        opacity: 0,
-                        duration: 0.6,
-                        delay: index * 0.1,
-                        ease: "power3.out"
-                    });
-                }
+                if (typeof gsap !== 'undefined') gsap.from(div, { y: 30, opacity: 0, duration: 0.6, delay: index * 0.1, ease: "power3.out" });
             });
-        } catch(e) { 
-            console.error(e); 
-            container.innerHTML = '<p style="color:red; text-align:center;">Ошибка загрузки новостей.</p>';
-        }
+        } catch(e) { container.innerHTML = '<p style="color:red;">Ошибка.</p>'; }
     };
 
-    // --- УПРАВЛЕНИЕ НОВОСТЯМИ (ЛИДЕР) ---
     const loadManageNews = async () => {
         const container = document.getElementById('manage-news-list');
         try {
-            const res = await fetch('/api/news');
-            const news = await res.json();
+            const news = await (await fetch('/api/news')).json();
             container.innerHTML = '';
-            if(news.length === 0) {
-                container.innerHTML = '<p style="color:var(--text-muted);">Новостей пока нет.</p>';
-                return;
-            }
             news.forEach(item => {
                 const div = document.createElement('div');
                 div.className = 'report-item';
-                div.innerHTML = `
-                    <h4>${item.title} <span style="color: var(--accent); font-size: 12px;">[${item.tag}]</span></h4>
-                    <p>${item.text.substring(0, 80)}...</p>
-                    <button class="btn btn--outline" onclick="deleteNews('${item.id}')" style="margin-top: 10px;">Удалить</button>
-                `;
+                div.innerHTML = `<h4>${item.title} <span style="color:var(--accent); font-size:12px;">[${item.tag}]</span></h4><p>${item.text.substring(0, 80)}...</p><button class="btn btn--outline" onclick="deleteNews('${item.id}')" style="margin-top: 10px;">Удалить</button>`;
                 container.appendChild(div);
             });
         } catch(e) { console.error(e); }
@@ -689,132 +439,67 @@ document.addEventListener("DOMContentLoaded", () => {
         addNewsForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const files = newsUpload.get();
-            const data = {
-                title: document.getElementById('news-title').value,
-                text: document.getElementById('news-text').value,
-                tag: document.getElementById('news-tag').value,
-                date: new Date().toLocaleDateString('ru-RU'),
-                image: null
-            };
-            
+            const data = { title: document.getElementById('news-title').value, text: document.getElementById('news-text').value, tag: document.getElementById('news-tag').value, date: new Date().toLocaleDateString('ru-RU'), image: null };
             if (files.length > 0) {
                 const reader = new FileReader();
-                reader.onload = async (event) => {
-                    data.image = event.target.result;
-                    await sendNewsData(data);
-                };
+                reader.onload = async (event) => { data.image = event.target.result; await sendNewsData(data); };
                 reader.readAsDataURL(files[0]);
-            } else {
-                await sendNewsData(data);
-            }
+            } else await sendNewsData(data);
         });
     }
 
     async function sendNewsData(data) {
         try {
-            const res = await fetch('/api/leader/news/add', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data)
-            });
-            if (res.ok) {
-                alert('Новость опубликована!');
-                document.getElementById('add-news-form').reset();
-                newsUpload.clear();
-                loadManageNews();
-            } else {
-                alert('Ошибка при публикации');
-            }
-        } catch (err) {
-            alert('Ошибка сети');
-        }
+            if ((await fetch('/api/leader/news/add', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })).ok) {
+                alert('Опубликовано!'); document.getElementById('add-news-form').reset(); newsUpload.clear(); loadManageNews();
+            } else alert('Ошибка.');
+        } catch (err) { alert('Ошибка сети'); }
     }
 
     window.deleteNews = async (id) => {
-        if(!confirm('Удалить новость?')) return;
-        const res = await fetch('/api/leader/news/remove', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ newsId: id })
-        });
-        if (res.ok) { alert('Новость удалена'); loadManageNews(); }
+        if(!confirm('Удалить?')) return;
+        if ((await fetch('/api/leader/news/remove', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ newsId: id }) })).ok) { alert('Удалено'); loadManageNews(); }
     };
 
-    // --- ПРОВЕРКА ОТЧЕТОВ (ХАЙ СТАФФ) ---
+    // --- ПРОВЕРКА ОТЧЕТОВ ---
     const loadPendingReports = async () => {
         const container = document.getElementById('pending-reports-list');
         try {
-            const res = await fetch('/api/staff/pending-reports');
-            const reports = await res.json();
+            const reports = await (await fetch('/api/staff/pending-reports')).json();
             window.allReportsData = reports;
-
-            if (reports.length === 0) {
-                container.innerHTML = '<p style="color:var(--text-muted); text-align:center;">Нет отчетов на проверке.</p>';
-                return;
-            }
-
+            if (reports.length === 0) { container.innerHTML = '<p style="color:var(--text-muted);">Пусто.</p>'; return; }
             container.innerHTML = '';
             reports.forEach(rep => {
                 const div = document.createElement('div');
-                div.className = 'report-item';
-                div.style.cursor = 'pointer';
-                div.onclick = (e) => {
-                    if (e.target.tagName !== 'BUTTON' && e.target.tagName !== 'INPUT') {
-                        window.openScreenshots(rep.id, `Скриншоты отчета: ${rep.type}`);
-                    }
-                };
-                div.innerHTML = `
-                    <h4>${rep.type} от ${rep.username}</h4>
-                    <p>${rep.text}</p>
-                    <p style="font-size: 12px; color: var(--text-muted);">Дата: ${rep.date || 'Не указана'} | Неделя: ${rep.week || 'Не указана'}</p>
-                    <div class="report-actions">
-                        <input type="number" id="reward-${rep.id}" value="100" title="Сумма награды">
-                        <button class="btn btn--success" onclick="approveReport('${rep.id}')">Одобрить</button>
-                        <input type="text" class="reject-input" id="reason-${rep.id}" placeholder="Причина отклонения">
-                        <button class="btn btn--outline" onclick="rejectReport('${rep.id}')">Отклонить</button>
-                    </div>
-                `;
+                div.className = 'report-item'; div.style.cursor = 'pointer';
+                div.onclick = (e) => { if (e.target.tagName !== 'BUTTON' && e.target.tagName !== 'INPUT') window.openScreenshots(rep.id, `Скриншоты: ${rep.type}`); };
+                div.innerHTML = `<h4>${rep.type} от ${rep.username}</h4><p>${rep.text}</p><p style="font-size:12px; color:var(--text-muted);">${rep.date || ''} | ${rep.week || ''}</p><div class="report-actions"><input type="number" id="reward-${rep.id}" value="100"><button class="btn btn--success" onclick="approveReport('${rep.id}')">Одобрить</button><input type="text" class="reject-input" id="reason-${rep.id}" placeholder="Причина"><button class="btn btn--outline" onclick="rejectReport('${rep.id}')">Отклонить</button></div>`;
                 container.appendChild(div);
             });
-        } catch (e) { container.innerHTML = '<p style="color:red; text-align:center;">Ошибка доступа</p>'; }
+        } catch (e) { container.innerHTML = '<p style="color:red;">Ошибка.</p>'; }
     };
 
     window.approveReport = async (id) => {
         const amount = document.getElementById(`reward-${id}`).value;
-        const res = await fetch('/api/staff/review', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ reportId: id, action: 'approve', amount: amount })
-        });
-        if (res.ok) { alert('Одобрено!'); loadPendingReports(); }
+        if ((await fetch('/api/staff/review', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ reportId: id, action: 'approve', amount: amount }) })).ok) { alert('Одобрено!'); loadPendingReports(); }
     };
 
     window.rejectReport = async (id) => {
         const reason = document.getElementById(`reason-${id}`).value;
-        if(!reason) return alert('Укажите причину отклонения!');
-        const res = await fetch('/api/staff/review', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ reportId: id, action: 'reject', reason: reason })
-        });
-        if (res.ok) { alert('Отклонено.'); loadPendingReports(); }
+        if(!reason) return alert('Причина?');
+        if ((await fetch('/api/staff/review', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ reportId: id, action: 'reject', reason: reason }) })).ok) { alert('Отклонено.'); loadPendingReports(); }
     };
 
-    // --- УПРАВЛЕНИЕ МАГАЗИНОМ (LEADER) ---
+    // --- УПРАВЛЕНИЕ МАГАЗИНОМ ---
     const loadManageShop = async () => {
         const container = document.getElementById('manage-shop-list');
         try {
-            const res = await fetch('/api/staff/shop');
-            const items = await res.json();
+            const items = await (await fetch('/api/staff/shop')).json();
             container.innerHTML = '';
             items.forEach(item => {
                 const div = document.createElement('div');
                 div.className = 'report-item';
-                div.innerHTML = `
-                    <h4>${item.icon} ${item.name} - ${item.price} LSMC</h4>
-                    <p>${item.desc}</p>
-                    <button class="btn btn--outline" onclick="deleteShopItem('${item.id}')">Удалить</button>
-                `;
+                div.innerHTML = `<h4>${item.icon} ${item.name} - ${item.price} LSMC</h4><p>${item.desc}</p><button class="btn btn--outline" onclick="deleteShopItem('${item.id}')">Удалить</button>`;
                 container.appendChild(div);
             });
         } catch (e) { console.error(e); }
@@ -824,70 +509,29 @@ document.addEventListener("DOMContentLoaded", () => {
     if(addShopForm) {
         addShopForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-            const data = {
-                name: document.getElementById('new-item-name').value,
-                price: document.getElementById('new-item-price').value,
-                desc: document.getElementById('new-item-desc').value,
-                icon: document.getElementById('new-item-icon').value || '🎁'
-            };
-            const res = await fetch('/api/leader/shop/add', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data)
-            });
-            if (res.ok) {
-                alert('Товар добавлен!');
-                addShopForm.reset();
-                loadManageShop();
-            }
+            const data = { name: document.getElementById('new-item-name').value, price: document.getElementById('new-item-price').value, desc: document.getElementById('new-item-desc').value, icon: document.getElementById('new-item-icon').value || '🎁' };
+            if ((await fetch('/api/leader/shop/add', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })).ok) { alert('Добавлено!'); addShopForm.reset(); loadManageShop(); }
         });
     }
 
     window.deleteShopItem = async (id) => {
-        if(!confirm('Удалить товар?')) return;
-        const res = await fetch('/api/leader/shop/remove', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ itemId: id })
-        });
-        if (res.ok) { alert('Удалено'); loadManageShop(); }
+        if(!confirm('Удалить?')) return;
+        if ((await fetch('/api/leader/shop/remove', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ itemId: id }) })).ok) { alert('Удалено'); loadManageShop(); }
     };
 
-    // --- ЗАКАЗЫ (ДЛЯ ЛИДЕРА) ---
+    // --- ЗАКАЗЫ ---
     const loadOrders = async () => {
         const container = document.getElementById('orders-list');
         try {
-            const res = await fetch('/api/staff/orders');
-            const orders = await res.json();
-            
-            if(orders.length === 0) {
-                container.innerHTML = '<p style="color:var(--text-muted); text-align:center;">Нет новых заказов.</p>';
-                return;
-            }
-
+            const orders = await (await fetch('/api/staff/orders')).json();
+            if(orders.length === 0) { container.innerHTML = '<p style="color:var(--text-muted);">Пусто.</p>'; return; }
             container.innerHTML = '';
             orders.forEach(o => {
                 const div = document.createElement('div');
                 div.className = 'report-item';
-                
-                let statusText = '';
-                let statusColor = '';
-                if (o.status === 'pending') { statusText = 'Ожидает выдачи'; statusColor = 'var(--gold)'; }
-                else if (o.status === 'issued') { statusText = 'Выдано'; statusColor = 'var(--success)'; }
-                else if (o.status === 'rejected') { statusText = 'Отклонено'; statusColor = 'var(--accent)'; }
-
-                div.innerHTML = `
-                    <h4>${o.itemName} от ${o.username} <span style="color: ${statusColor}; font-size: 14px; margin-left: 10px;">[${statusText}]</span></h4>
-                    <p>Стоимость: ${o.price} LSMC</p>
-                    ${o.reason ? `<p style="color: var(--accent); font-size: 14px;"><b>Причина:</b> ${o.reason}</p>` : ''}
-                    <div class="report-actions">
-                        ${o.status === 'pending' ? `
-                            <button class="btn btn--success" onclick="issueOrder('${o.id}', 'issued')">Выдать</button>
-                            <input type="text" class="reject-input" id="reason-order-${o.id}" placeholder="Причина отклонения">
-                            <button class="btn btn--outline" onclick="issueOrder('${o.id}', 'rejected')">Отклонить</button>
-                        ` : ''}
-                    </div>
-                `;
+                let sT = o.status === 'pending' ? 'Ожидает' : o.status === 'issued' ? 'Выдано' : 'Отклонено';
+                let sC = o.status === 'pending' ? 'var(--gold)' : o.status === 'issued' ? 'var(--success)' : 'var(--accent)';
+                div.innerHTML = `<h4>${o.itemName} от ${o.username} <span style="color:${sC};">[${sT}]</span></h4><p>${o.price} LSMC</p>${o.reason ? `<p style="color:var(--accent);">Причина: ${o.reason}</p>` : ''}<div class="report-actions">${o.status === 'pending' ? `<button class="btn btn--success" onclick="issueOrder('${o.id}', 'issued')">Выдать</button><input type="text" class="reject-input" id="reason-order-${o.id}" placeholder="Причина"><button class="btn btn--outline" onclick="issueOrder('${o.id}', 'rejected')">Отклонить</button>` : ''}</div>`;
                 container.appendChild(div);
             });
         } catch (e) { console.error(e); }
@@ -896,269 +540,173 @@ document.addEventListener("DOMContentLoaded", () => {
     window.issueOrder = async (id, action) => {
         const reasonInput = document.getElementById(`reason-order-${id}`);
         const reason = reasonInput ? reasonInput.value : '';
-        const res = await fetch('/api/staff/order/review', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ orderId: id, action: action, reason: reason })
-        });
-        if (res.ok) { alert('Обновлено'); loadOrders(); }
+        if ((await fetch('/api/staff/order/review', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ orderId: id, action: action, reason: reason }) })).ok) { alert('Обновлено'); loadOrders(); }
     };
 
-    // --- МОИ ОТЧЕТЫ ---
+    // --- МОИ ОТЧЕТЫ / ЗАКАЗЫ ---
     const loadMyReports = async () => {
         const container = document.getElementById('my-reports-list');
         try {
-            const res = await fetch('/api/staff/my-reports');
-            const reports = await res.json();
+            const reports = await (await fetch('/api/staff/my-reports')).json();
             window.allReportsData = reports;
-
-            if (reports.length === 0) {
-                container.innerHTML = '<p style="color:var(--text-muted); text-align:center;">Вы еще не сдавали отчеты.</p>';
-                return;
-            }
-
+            if (reports.length === 0) { container.innerHTML = '<p style="color:var(--text-muted);">Пусто.</p>'; return; }
             container.innerHTML = '';
             reports.forEach(rep => {
                 const div = document.createElement('div');
-                div.className = 'report-item';
-                div.style.cursor = 'pointer';
-                div.onclick = () => window.openScreenshots(rep.id, `Скриншоты отчета: ${rep.type}`);
-                
-                let statusText = '';
-                let statusColor = '';
-                if (rep.status === 'pending') { statusText = 'На проверке'; statusColor = 'var(--gold)'; }
-                else if (rep.status === 'approved') { statusText = 'Одобрен'; statusColor = 'var(--success)'; }
-                else if (rep.status === 'rejected') { statusText = 'Отклонен'; statusColor = 'var(--accent)'; }
-
-                div.innerHTML = `
-                    <h4>${rep.type} <span style="color: ${statusColor}; font-size: 14px; margin-left: 10px;">[${statusText}]</span></h4>
-                    <p>${rep.text}</p>
-                    <p style="font-size: 12px; color: var(--text-muted); margin-top: 5px;">Дата: ${rep.date || 'Не указана'} | Неделя: ${rep.week || 'Не указана'}</p>
-                    ${rep.status === 'rejected' && rep.reason ? `<p style="color: var(--accent); font-size: 14px; margin-top: 5px;"><b>Причина:</b> ${rep.reason}</p>` : ''}
-                    <p style="font-size: 12px; color: var(--accent); margin-top: 10px;">👁 Нажмите, чтобы посмотреть скриншоты</p>
-                `;
+                div.className = 'report-item'; div.style.cursor = 'pointer';
+                div.onclick = () => window.openScreenshots(rep.id, `Скриншоты: ${rep.type}`);
+                let sT = rep.status === 'pending' ? 'На проверке' : rep.status === 'approved' ? 'Одобрен' : 'Отклонен';
+                let sC = rep.status === 'pending' ? 'var(--gold)' : rep.status === 'approved' ? 'var(--success)' : 'var(--accent)';
+                div.innerHTML = `<h4>${rep.type} <span style="color:${sC};">[${sT}]</span></h4><p>${rep.text}</p><p style="font-size:12px; color:var(--text-muted);">${rep.date || ''} | ${rep.week || ''}</p>${rep.status === 'rejected' && rep.reason ? `<p style="color:var(--accent);">Причина: ${rep.reason}</p>` : ''}`;
                 container.appendChild(div);
             });
-        } catch (e) { console.error(e); container.innerHTML = '<p style="color:red; text-align:center;">Ошибка загрузки</p>'; }
+        } catch (e) { console.error(e); }
     };
 
-    // --- МОИ ЗАКАЗЫ ---
     const loadMyOrders = async () => {
         const container = document.getElementById('my-orders-list');
         try {
-            const res = await fetch('/api/staff/my-orders');
-            const orders = await res.json();
-
-            if (orders.length === 0) {
-                container.innerHTML = '<p style="color:var(--text-muted); text-align:center;">Вы еще не делали заказов.</p>';
-                return;
-            }
-
+            const orders = await (await fetch('/api/staff/my-orders')).json();
+            if (orders.length === 0) { container.innerHTML = '<p style="color:var(--text-muted);">Пусто.</p>'; return; }
             container.innerHTML = '';
             orders.forEach(o => {
                 const div = document.createElement('div');
                 div.className = 'report-item';
-                
-                let statusText = '';
-                let statusColor = '';
-                if (o.status === 'pending') { statusText = 'Ожидает выдачи'; statusColor = 'var(--gold)'; }
-                else if (o.status === 'issued') { statusText = 'Выдано'; statusColor = 'var(--success)'; }
-                else if (o.status === 'rejected') { statusText = 'Отклонено'; statusColor = 'var(--accent)'; }
-
-                div.innerHTML = `
-                    <h4>${o.itemName} <span style="color: ${statusColor}; font-size: 14px; margin-left: 10px;">[${statusText}]</span></h4>
-                    <p>Стоимость: ${o.price} LSMC</p>
-                    ${o.status === 'rejected' && o.reason ? `<p style="color: var(--accent); font-size: 14px; margin-top: 5px;"><b>Причина:</b> ${o.reason}</p>` : ''}
-                    <p style="font-size: 12px; color: var(--text-muted); margin-top: 10px;">Дата заказа: ${new Date(o.timestamp).toLocaleString()}</p>
-                `;
+                let sT = o.status === 'pending' ? 'Ожидает' : o.status === 'issued' ? 'Выдано' : 'Отклонено';
+                let sC = o.status === 'pending' ? 'var(--gold)' : o.status === 'issued' ? 'var(--success)' : 'var(--accent)';
+                div.innerHTML = `<h4>${o.itemName} <span style="color:${sC};">[${sT}]</span></h4><p>${o.price} LSMC</p><p style="font-size:12px; color:var(--text-muted);">${new Date(o.timestamp).toLocaleString()}</p>`;
                 container.appendChild(div);
             });
-        } catch (e) { console.error(e); container.innerHTML = '<p style="color:red; text-align:center;">Ошибка загрузки</p>'; }
+        } catch (e) { console.error(e); }
     };
 
-    // =========================================================================
-    // --- БАЗА ДАННЫХ СОТРУДНИКОВ (ЛИДЕР) ---
-    // =========================================================================
+    // --- БАЗА ДАННЫХ ---
     let allUsers = [];
     let currentEditUser = null;
 
     const loadDatabase = async () => {
         const tbody = document.getElementById('db-table-body');
         if (!tbody) return;
-        
         try {
-            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:var(--text-muted);">Загрузка...</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Загрузка...</td></tr>';
             const res = await fetch('/api/leader/users');
-            
-            if (!res.ok) {
-                const errorData = await res.json();
-                throw new Error(errorData.error || 'Ошибка сервера');
-            }
-
+            if (!res.ok) throw new Error('Ошибка сервера');
             allUsers = await res.json();
             renderDbTable(allUsers);
         } catch (e) {
-            console.error(e);
-            tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:red; padding: 20px;">
-                <b>Ошибка загрузки:</b><br>${e.message}
-            </td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="5" style="color:red;">Ошибка: ${e.message}</td></tr>`;
         }
     };
 
     const renderDbTable = (users) => {
         const tbody = document.getElementById('db-table-body');
         tbody.innerHTML = '';
-        
-        if (users.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:var(--text-muted);">Сотрудники не найдены</td></tr>';
-            return;
-        }
-
+        if (users.length === 0) { tbody.innerHTML = '<tr><td colspan="5">Не найдены</td></tr>'; return; }
         users.forEach(u => {
             const tr = document.createElement('tr');
-            
-            let avatarUrl = 'https://cdn.discordapp.com/embed/avatars/0.png';
-            if (u.avatar) {
-                avatarUrl = `https://cdn.discordapp.com/avatars/${u.id}/${u.avatar}.png`;
-            }
-
+            const avatarUrl = u.avatar ? `https://cdn.discordapp.com/avatars/${u.id}/${u.avatar}.png` : 'https://cdn.discordapp.com/embed/avatars/0.png';
             let deptClass = 'db-dept--staff';
             if (u.rankWeight === 100) deptClass = 'db-dept--leader';
             else if (u.rankWeight === 90) deptClass = 'db-dept--deputy';
             else if (u.rankWeight === 80) deptClass = 'db-dept--head';
             else if (u.rankWeight === 70) deptClass = 'db-dept--dep-head';
             else if (u.rankWeight === 60) deptClass = 'db-dept--high';
-
-            let medalHtml = '';
-            if (u.rankWeight === 80) {
-                if (u.department.includes('ОК')) medalHtml = '<span style="margin-left: 5px; font-size: 16px;">🥇</span>';
-                else if (u.department.includes('SMPD')) medalHtml = '<span style="margin-left: 5px; font-size: 16px;">🥈</span>';
-                else if (u.department.includes('PRD')) medalHtml = '<span style="margin-left: 5px; font-size: 16px;">🥉</span>';
-            }
-
-            // Генерируем блок активности
-            const maxReportsForBar = 10; 
-            const weekPercent = Math.min((u.weekActivity / maxReportsForBar) * 100, 100);
-            
-            let barColor = 'var(--success)';
-            if (u.weekActivity === 0) barColor = 'rgba(255,255,255,0.1)';
-            else if (u.weekActivity < 3) barColor = 'var(--gold)';
-
-            const activityHtml = `
-                <div class="activity-wrapper" title="За месяц: ${u.monthActivity} отч.">
-                    <div class="activity-info">
-                        <span>${u.weekActivity} <small>отч. (нед)</small></span>
-                        <span style="color: var(--text-muted); font-size: 11px;">${u.monthActivity} <small>мес.</small></span>
-                    </div>
-                    <div class="activity-bar-bg">
-                        <div class="activity-bar-fill" style="width: ${weekPercent}%; background: ${barColor};"></div>
-                    </div>
-                </div>
-            `;
-
-            tr.innerHTML = `
-                <td>
-                    <div class="db-user-cell">
-                        <img src="${avatarUrl}" alt="Avatar" class="db-avatar">
-                        <div class="db-user-info">
-                            <span class="db-username">${u.username} ${medalHtml}</span>
-                            <span class="db-discord-tag">@${u.discordTag}</span>
-                            <span class="db-dept ${deptClass}">${u.department}</span>
-                        </div>
-                    </div>
-                </td>
-                <td><span class="db-balance">${u.balance} LSMC</span></td>
-                <td><span class="db-earned">${u.totalEarned} LSMC</span></td>
-                <td>${activityHtml}</td>
-                <td style="text-align: right;">
-                    <button class="btn-manage" onclick="openUserManage('${u.id}')">Управление</button>
-                </td>
-            `;
+            let medalHtml = u.rankWeight === 80 ? (u.department.includes('ОК') ? '🥇' : u.department.includes('SMPD') ? '🥈' : '🥉') : '';
+            const weekPercent = Math.min((u.weekActivity / 10) * 100, 100);
+            let barColor = u.weekActivity === 0 ? 'rgba(255,255,255,0.1)' : u.weekActivity < 3 ? 'var(--gold)' : 'var(--success)';
+            tr.innerHTML = `<td><div class="db-user-cell"><img src="${avatarUrl}" class="db-avatar"><div class="db-user-info"><span class="db-username">${u.username} ${medalHtml}</span><span class="db-discord-tag">@${u.discordTag}</span><span class="db-dept ${deptClass}">${u.department}</span></div></div></td><td><span class="db-balance">${u.balance} LSMC</span></td><td><span class="db-earned">${u.totalEarned} LSMC</span></td><td><div class="activity-wrapper"><div class="activity-info"><span>${u.weekActivity} нед.</span><span>${u.monthActivity} мес.</span></div><div class="activity-bar-bg"><div class="activity-bar-fill" style="width: ${weekPercent}%; background: ${barColor};"></div></div></div></td><td style="text-align: right;"><button class="btn-manage" onclick="openUserManage('${u.id}')">Управление</button></td>`;
             tbody.appendChild(tr);
         });
     };
 
-    const searchInput = document.getElementById('db-search');
-    if (searchInput) {
-        searchInput.addEventListener('input', (e) => {
-            const query = e.target.value.toLowerCase();
-            const filtered = allUsers.filter(u => 
-                u.username.toLowerCase().includes(query) || 
-                u.id.includes(query)
-            );
-            renderDbTable(filtered);
-        });
-    }
+    document.getElementById('db-search')?.addEventListener('input', (e) => {
+        const query = e.target.value.toLowerCase();
+        renderDbTable(allUsers.filter(u => u.username.toLowerCase().includes(query) || u.id.includes(query)));
+    });
 
     window.openUserManage = (userId) => {
         const user = allUsers.find(u => u.id === userId);
         if (!user) return;
-        
         currentEditUser = user;
         document.getElementById('manage-user-name').textContent = user.username;
         document.getElementById('manage-warn-count').textContent = user.warnings;
         document.getElementById('manage-amount').value = '';
-        
+        document.getElementById('manage-cid').value = user.cid || '';
         document.getElementById('user-manage-modal').style.display = 'flex';
     };
 
-    const userModal = document.getElementById('user-manage-modal');
-    const closeUserModal = document.querySelector('.close-user-modal');
-    if (closeUserModal) {
-        closeUserModal.addEventListener('click', () => userModal.style.display = 'none');
-    }
-    window.addEventListener('click', (e) => {
-        if (e.target === userModal) userModal.style.display = 'none';
-    });
+    document.querySelector('.close-user-modal')?.addEventListener('click', () => document.getElementById('user-manage-modal').style.display = 'none');
 
     window.manageBalance = async (action) => {
         if (!currentEditUser) return;
         const amount = document.getElementById('manage-amount').value;
-        if (!amount || amount <= 0) return alert('Введите корректную сумму');
-
-        try {
-            const res = await fetch('/api/leader/users/balance', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ userId: currentEditUser.id, amount: amount, action: action })
-            });
-            const data = await res.json();
-            
-            if (data.success) {
-                alert(`Успешно! Новый баланс: ${data.newBalance} LSMC`);
-                currentEditUser.balance = data.newBalance;
-                if (action === 'add') currentEditUser.totalEarned += parseInt(amount);
-                
-                document.getElementById('manage-amount').value = '';
-                loadDatabase();
-            } else {
-                alert('Ошибка: ' + data.error);
-            }
-        } catch (e) {
-            alert('Ошибка сети');
-        }
+        if (!amount || amount <= 0) return alert('Введите сумму!');
+        const data = await (await fetch('/api/leader/users/balance', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: currentEditUser.id, amount, action }) })).json();
+        if (data.success) { alert(`Новый баланс: ${data.newBalance}`); document.getElementById('manage-amount').value = ''; loadDatabase(); }
+        else alert('Ошибка: ' + data.error);
     };
 
     window.manageWarn = async (action) => {
         if (!currentEditUser) return;
-        
+        const data = await (await fetch('/api/leader/users/warn', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: currentEditUser.id, action }) })).json();
+        if (data.success) { currentEditUser.warnings = data.warnings; document.getElementById('manage-warn-count').textContent = data.warnings; loadDatabase(); }
+        else alert('Ошибка: ' + data.error);
+    };
+
+    window.manageCid = async () => {
+        if (!currentEditUser) return;
+        const cid = document.getElementById('manage-cid').value.trim();
+        const data = await (await fetch('/api/leader/users/cid', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: currentEditUser.id, cid }) })).json();
+        if (data.success) { alert('CID обновлен!'); currentEditUser.cid = data.cid; loadDatabase(); }
+        else alert('Ошибка: ' + data.error);
+    };
+
+    // --- ЛОГИ ---
+    const loadLogs = async () => {
+        const container = document.getElementById('logs-container');
         try {
-            const res = await fetch('/api/leader/users/warn', {
+            const logs = await (await fetch('/api/leader/logs')).json();
+            if (currentUser && currentUser.isLeader) {
+                 const reports = await (await fetch('/api/staff/all-reports')).json();
+                 allReportsCache = reports;
+            }
+            container.innerHTML = '';
+            if (logs.length === 0) { container.innerHTML = '<p style="color:var(--text-muted); text-align:center;">За эту неделю действий не было.</p>'; return; }
+            logs.forEach(log => {
+                const date = new Date(log.timestamp);
+                const div = document.createElement('div');
+                div.className = 'log-item';
+                if (log.reportId) {
+                    div.style.cursor = 'pointer';
+                    div.title = "Нажмите, чтобы посмотреть отчет";
+                    div.onclick = () => window.openScreenshots(log.reportId, 'Просмотр отчета из лога');
+                }
+                div.innerHTML = `<div class="log-time">${date.toLocaleDateString('ru-RU')} ${date.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}</div><div class="log-content"><span class="log-action">${log.action}</span><span class="log-details">${log.details}</span></div><div class="log-user"><span>${log.username}</span></div>`;
+                container.appendChild(div);
+            });
+        } catch (e) { container.innerHTML = '<p style="color:red; text-align:center;">Ошибка загрузки логов</p>'; }
+    };
+
+    // --- СОХРАНЕНИЕ CID ПОЛЬЗОВАТЕЛЕМ ---
+    const saveCidBtn = document.getElementById('save-cid-btn');
+    if (saveCidBtn) {
+        saveCidBtn.addEventListener('click', async () => {
+            const cid = document.getElementById('cid-input').value.trim();
+            if (!cid || cid.length < 2) return alert('Введите корректный CID (например, D2LA)');
+            
+            const res = await fetch('/api/user/set-cid', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ userId: currentEditUser.id, action: action })
+                body: JSON.stringify({ cid })
             });
-            const data = await res.json();
             
-            if (data.success) {
-                currentEditUser.warnings = data.warnings;
-                document.getElementById('manage-warn-count').textContent = data.warnings;
-                loadDatabase();
+            if (res.ok) {
+                alert('CID сохранен!');
+                document.getElementById('cid-modal').style.display = 'none';
+                window.location.reload();
             } else {
-                alert('Ошибка: ' + data.error);
+                alert('Ошибка сохранения');
             }
-        } catch (e) {
-            alert('Ошибка сети');
-        }
-    };
+        });
+    }
 });
