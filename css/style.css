@@ -635,3 +635,120 @@ main { flex: 1; display: flex; flex-direction: column; }
     border-color: var(--accent);
     box-shadow: 0 0 10px rgba(255, 0, 60, 0.2);
 }
+
+/* =========================================
+   ЛОГИ ДЕЙСТВИЙ
+   ========================================= */
+.logs-list {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.log-item {
+    display: flex;
+    align-items: center;
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 16px;
+    padding: 15px 20px;
+    transition: all 0.3s ease;
+    position: relative;
+}
+
+.log-item:hover {
+    background: rgba(255, 255, 255, 0.03);
+    border-color: rgba(255, 0, 60, 0.3);
+    transform: translateX(5px);
+}
+
+/* Если на лог можно нажать (есть отчет) */
+.log-item.clickable {
+    cursor: pointer;
+}
+
+.log-item.clickable:hover {
+    border-color: var(--accent);
+    box-shadow: 0 0 15px rgba(255, 0, 60, 0.15);
+}
+
+.log-time {
+    flex-shrink: 0;
+    width: 140px;
+    font-size: 13px;
+    color: var(--text-muted);
+    font-weight: 500;
+    border-right: 1px solid rgba(255, 255, 255, 0.1);
+    padding-right: 15px;
+    margin-right: 20px;
+}
+
+.log-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.log-action {
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 700;
+    font-size: 15px;
+    color: white;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* Цветовые акценты для разных действий (по желанию можно расширить) */
+.log-action[data-action="Одобрение отчета"] { color: var(--success); }
+.log-action[data-action="Отклонение отчета"] { color: var(--accent); }
+.log-action[data-action="Выдача заказа"] { color: var(--gold); }
+
+.log-details {
+    font-size: 14px;
+    color: var(--text-muted);
+    line-height: 1.4;
+}
+
+.log-user {
+    flex-shrink: 0;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--accent);
+    background: rgba(255, 0, 60, 0.1);
+    padding: 5px 12px;
+    border-radius: 20px;
+    margin-left: 20px;
+}
+
+/* Иконка глаза для логов с отчетами */
+.log-eye-icon {
+    margin-left: 10px;
+    color: var(--text-muted);
+    transition: color 0.3s;
+}
+
+.log-item.clickable:hover .log-eye-icon {
+    color: var(--accent);
+}
+
+/* Адаптив для телефонов */
+@media (max-width: 768px) {
+    .log-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+    .log-time {
+        width: 100%;
+        border-right: none;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        padding-right: 0;
+        padding-bottom: 10px;
+        margin-right: 0;
+    }
+    .log-user {
+        margin-left: 0;
+    }
+}

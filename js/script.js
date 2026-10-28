@@ -664,27 +664,58 @@ document.addEventListener("DOMContentLoaded", () => {
     // --- ЛОГИ ---
     const loadLogs = async () => {
         const container = document.getElementById('logs-container');
+        if (!container) return;
+        
         try {
-            const logs = await (await fetch('/api/leader/logs')).json();
+            // Загружаем сами логи
+            const logsRes = await fetch('/api/leader/logs');
+            const logs = await logsRes.json();
+
+            // Загружаем ВСЕ отчеты, чтобы потом можно было открыть скриншоты из логов
             if (currentUser && currentUser.isLeader) {
-                 const reports = await (await fetch('/api/staff/all-reports')).json();
-                 allReportsCache = reports;
+                 const reportsRes = await fetch('/api/staff/all-reports');
+                 const reports = await reportsRes.json();
+                 allReportsCache = reports; // Сохраняем в кеш для функции openScreenshots
             }
+
             container.innerHTML = '';
-            if (logs.length === 0) { container.innerHTML = '<p style="color:var(--text-muted); text-align:center;">За эту неделю действий не было.</p>'; return; }
+            
+            if (logs.length === 0) { 
+                container.innerHTML = '<p style="color:var(--text-muted); text-align:center; padding: 20px;">За эту неделю действий не было.</p>'; 
+                return; 
+            }
+
             logs.forEach(log => {
                 const date = new Date(log.timestamp);
+                const dateStr = date.toLocaleDateString('ru-RU');
+                const timeStr = date.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+                
                 const div = document.createElement('div');
                 div.className = 'log-item';
+                
+                // Если есть ID отчета, делаем лог кликабельным
                 if (log.reportId) {
-                    div.style.cursor = 'pointer';
-                    div.title = "Нажмите, чтобы посмотреть отчет";
+                    div.classList.add('clickable');
+                    div.title = "Нажмите, чтобы посмотреть скриншоты отчета";
                     div.onclick = () => window.openScreenshots(log.reportId, 'Просмотр отчета из лога');
                 }
-                div.innerHTML = `<div class="log-time">${date.toLocaleDateString('ru-RU')} ${date.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}</div><div class="log-content"><span class="log-action">${log.action}</span><span class="log-details">${log.details}</span></div><div class="log-user"><span>${log.username}</span></div>`;
+
+                div.innerHTML = `
+                    <div class="log-time">${dateStr} <br> <span style="font-size:11px; opacity:0.7;">${timeStr}</span></div>
+                    <div class="log-content">
+                        <span class="log-action" data-action="${log.action || ''}">${log.action || 'Действие'}</span>
+                        <span class="log-details">${log.details || ''}</span>
+                    </div>
+                    <div class="log-user">${log.username || 'Неизвестно'}</div>
+                    ${log.reportId ? `<span class="log-eye-icon">👁️</span>` : ''}
+                `;
+                
                 container.appendChild(div);
             });
-        } catch (e) { container.innerHTML = '<p style="color:red; text-align:center;">Ошибка загрузки логов</p>'; }
+        } catch (e) { 
+            console.error(e);
+            container.innerHTML = '<p style="color:red; text-align:center;">Ошибка загрузки логов</p>'; 
+        }
     };
 
     // --- СОХРАНЕНИЕ CID ПОЛЬЗОВАТЕЛЕМ ---
