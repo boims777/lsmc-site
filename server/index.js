@@ -15,7 +15,7 @@ const REDIRECT_URI = 'https://cold-crematorium-xr5vpx5jrv5j36j99-3000.app.github
 const GUILD_ID = '1176546172240928808'; 
 
 // ⚠️ ВСТАВЬ СВОЙ ТОКЕН СЮДА
-const BOT_TOKEN = process.env.BOT_TOKEN || 'MTU2Mzg3OTc2MDg0MzUwNTY2NA.Gh1oDZ.n6CGJUgJ-rjFOpCt-zVP-jqom3ATdxvL9TTkDg';
+const BOT_TOKEN = process.env.BOT_TOKEN;
 
 // --- ID РОЛЕЙ ---
 const STAFF_ROLE_ID = '1474051546361762024';      
